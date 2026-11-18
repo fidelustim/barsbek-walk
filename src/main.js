@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=17';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=17';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=17';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=17';
+import { Input } from './input.js?v=18';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=18';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=18';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=18';
 
-const BUILD = 'v17';
+const BUILD = 'v18';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -42,10 +42,10 @@ let yaw = 0, pitch = -0.15;    // поворот камеры
 let camDist = 2.6;             // дистанция камеры (меняется колесом)
 let firstPerson = false;
 let autoCam = new URLSearchParams(window.location.search).get('autocam') !== '0'; // камера сама заходит за спину
-let lastManualLook = -10;
-let visualYOffset = 0;
-let testMove = null;        // автотест: имитация джойстика
-const simFps = parseFloat(new URLSearchParams(window.location.search).get('simfps')) || 0;      // сглаживание шага на ступеньку     // время последнего ручного поворота камеры
+let lastManualLook = -10;     // время последнего ручного поворота камеры
+const visualOff = new THREE.Vector3(); // сглаживание шага на ступеньку
+let testMove = null;          // автотест: имитация джойстика
+const simFps = parseFloat(new URLSearchParams(window.location.search).get('simfps')) || 0;
 let running = false;
 const camPos = new THREE.Vector3();
 const charReady = character.load('./assets/models/robot.glb').then(() => scene.add(character.root));
