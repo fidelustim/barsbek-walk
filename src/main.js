@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=13';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=13';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=13';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=13';
+import { Input } from './input.js?v=15';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=15';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=15';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=15';
 
-const BUILD = 'v13';
+const BUILD = 'v15';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
