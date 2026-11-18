@@ -107,7 +107,8 @@ export class TailBones {
         const minY = groundY + 0.1; // не под пол (радиус хвоста)
         if (pts[i].y < minY) pts[i].y = minY;
         const along = _v.subVectors(pts[i], anchor).dot(fwd);          // не вперёд, в ноги
-        if (along > -0.02) pts[i].addScaledVector(fwd, -0.02 - along);
+        const back = Math.min(0.18, 0.05 * (i - 1)); // ниже корня — дальше от ног, чтобы шагающая нога не проходила сквозь хвост
+        if (along > -back) pts[i].addScaledVector(fwd, -back - along);
       }
     }
     for (let i = 0; i < n; i++) { // кости вдоль цепочки
