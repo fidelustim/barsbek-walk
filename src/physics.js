@@ -120,7 +120,7 @@ export class Player {
     this.dbgAlong = dLen > 1e-4 ? +(along / dLen).toFixed(2) : null; this.dbgG = this.grounded;
     if (dLen > 1e-4 && along < dLen * 0.9 && (this.grounded || this.sinceGrounded < 0.15) && this.vy <= 0) {
       const up = this.tryStepUp(t, desired.x / dLen, desired.z / dLen, dLen);
-      if (up) { nx = up.x; ny = up.y; nz = up.z; this.grounded = true; this.stepped = up.h; }
+      if (up) { nx = up.x; ny = up.y; nz = up.z; this.grounded = true; this.stepped = { h: ny - t.y, dx: up.dx, dz: up.dz }; }
     }
     this.body.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
   }
@@ -138,7 +138,7 @@ export class Player {
         undefined, undefined, this.collider);
       if (!hit || hit.normal.y < 0.75) continue;
       const hh = origin.y - hit.timeOfImpact - feetY;
-      if (hh >= 0.02 && hh <= STEP_MAX) { h = hh; break; }
+      if (hh >= 0.0 && hh <= STEP_MAX) { h = hh; break; }
     }
     if (h < 0) { this.dbg = 'noledge'; return null; }
     // 2) Хватает ли места: капсула, поднятая на h, свободно проходит вперёд.
@@ -147,10 +147,13 @@ export class Player {
     const shape = this.collider.shape;
     const upHit = w.castShape(t, rot, { x: 0, y: 1, z: 0 }, shape, 0, h + 0.02, true, undefined, undefined, this.collider);
     if (upHit) { this.dbg = 'up'; return null; }
-    const fwdHit = w.castShape(lifted, rot, { x: dx, y: 0, z: dz }, shape, 0, Math.max(dist, 0.08), true, undefined, undefined, this.collider);
+    const fwdHit = w.castShape(lifted, rot, { x: dx, y: 0, z: dz }, shape, 0, Math.max(dist, 0.12) + 0.02, true, undefined, undefined, this.collider);
     if (fwdHit) { this.dbg = 'fwd ' + fwdHit.time_of_impact.toFixed(3) + ' h' + h.toFixed(2); return null; }
     this.dbg = 'ok h' + h.toFixed(2);
-    return { x: t.x + dx * dist, y: lifted.y, z: t.z + dz * dist, h };
+    // При медленной ходьбе шаг за кадр крошечный: капсула остаётся на углу ступеньки и сползает назад.
+    // Поэтому переносим центр минимум на 12 см вперёд (визуально сглаживается в main.js).
+    const fwd = Math.max(dist, 0.12);
+    return { x: t.x + dx * fwd, y: lifted.y, z: t.z + dz * fwd, h, dx: dx * (fwd - dist), dz: dz * (fwd - dist) };
   }
 }
 

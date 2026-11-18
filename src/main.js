@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=16';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=16';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=16';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=16';
+import { Input } from './input.js?v=17';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=17';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=17';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=17';
 
-const BUILD = 'v16';
+const BUILD = 'v17';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -245,10 +245,10 @@ renderer.setAnimationLoop(() => {
     }
     const f = player.feet;
     // Сглаживаем визуальный подъём на ступеньку (физика поднимает мгновенно).
-    if (player.stepped) { visualYOffset -= player.stepped; player.stepped = 0; }
-    visualYOffset *= Math.exp(-dt * 14);
-    if (Math.abs(visualYOffset) < 0.002) visualYOffset = 0;
-    character.root.position.set(f.x, f.y + visualYOffset, f.z);
+    if (player.stepped) { visualOff.x -= player.stepped.dx; visualOff.y -= player.stepped.h; visualOff.z -= player.stepped.dz; player.stepped = null; }
+    visualOff.multiplyScalar(Math.exp(-dt * 12));
+    if (visualOff.lengthSq() < 4e-6) visualOff.set(0, 0, 0);
+    character.root.position.set(f.x + visualOff.x, f.y + visualOff.y, f.z + visualOff.z);
     character.update(dt, Math.hypot(vx, vz), player.grounded, moveYaw);
     // Упал за пределы — возвращаем на точку появления.
     if (f.y < location.floorY - 8) player.teleport(location.spawn.x, location.spawn.y, location.spawn.z);
