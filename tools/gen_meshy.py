@@ -1,7 +1,7 @@
 import fal_client, os, json, urllib.request, time, sys
 os.environ['FAL_KEY'] = [l.split('=', 1)[1].strip().strip('"\'') for l in open(os.path.expanduser('~/.bashrc')) if 'FAL_KEY=' in l][0]
 S = os.path.expanduser('~/projects/barsbek-walk/source-art/')
-O = os.path.expanduser('~/projects/barsbek-walk/source-art/meshy/')
+O = os.path.expanduser('~/projects/barsbek-walk/source-art/meshy_v2/')
 os.makedirs(O, exist_ok=True)
 log = open(O + 'log.json', 'a')
 
@@ -14,7 +14,7 @@ def save(url, name):
 step = sys.argv[1] if len(sys.argv) > 1 else 'all'
 
 if step in ('all', 'mesh'):
-    imgs = [fal_client.upload_file(S + f'v1_{n}.png') for n in ('front', 'side', 'back')]
+    imgs = [fal_client.upload_file(S + f'v2b_{n}.png') for n in ('front', 'side', 'back')]
     args = {
         'image_urls': imgs,
         'symmetry_mode': 'auto',
@@ -23,7 +23,7 @@ if step in ('all', 'mesh'):
         'target_polycount': 30000,
         'should_texture': True,
         'enable_pbr': False,
-        'texture_prompt': 'anthropomorphic snow leopard in a dusty sage-green hoodie, dark charcoal joggers, off-white sneakers; smoky-white fur with charcoal spots, pale icy green-grey eyes',
+        'texture_prompt': 'anthropomorphic snow leopard in a dusty sage-green hoodie, dark charcoal joggers, off-white sneakers; smoky-white fur with charcoal spots, pale icy green-grey eyes; long fluffy tail with charcoal ring rosettes and a black tip',
         'enable_rigging': False,
     }
     t0 = time.time()

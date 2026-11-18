@@ -8,7 +8,7 @@ import { mat4, vec3 } from 'gl-matrix';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 
-const D = 'source-art/meshy/';
+const D = process.env.MESHY_DIR || 'source-art/meshy_v2/';
 const io = new NodeIO();
 const base = await io.read(D + 'rigged.glb');
 const root = base.getRoot();
@@ -51,40 +51,41 @@ const P = prim.getAttribute('POSITION').getArray();
 const I = prim.getIndices().getArray();
 const nV = P.length / 3;
 
-// 1) Вершины хвоста: заливка по рёбрам от заведомо хвостовых вершин (далеко позади ног),
-//    не дальше «коробки» за тазом — ноги (z ≥ 0.1) и спина не захватываются.
-const inBox = (i) => P[i * 3 + 2] < 0.09 && Math.abs(P[i * 3]) < 0.13 && P[i * 3 + 1] < 0.8;
+// 1) Вершины хвоста: геодезическое расстояние по поверхности от кончика (самая задняя вершина).
+//    Хвост — всё ближе TAIL_GEO; дальше начинается тело (радиус «слоя» резко растёт).
 const posKey = (i) => `${P[i * 3].toFixed(4)},${P[i * 3 + 1].toFixed(4)},${P[i * 3 + 2].toFixed(4)}`;
 const weld = new Map(); const rep = new Int32Array(nV);
 for (let i = 0; i < nV; i++) { const k = posKey(i); if (!weld.has(k)) weld.set(k, i); rep[i] = weld.get(k); }
 const adj = new Map();
-const link = (a, b) => { a = rep[a]; b = rep[b]; if (!adj.has(a)) adj.set(a, []); adj.get(a).push(b); };
+const link = (a, b) => { a = rep[a]; b = rep[b]; if (a === b) return; if (!adj.has(a)) adj.set(a, new Set()); adj.get(a).add(b); };
 for (let t = 0; t < I.length; t += 3) for (let k = 0; k < 3; k++) { link(I[t + k], I[t + (k + 1) % 3]); link(I[t + (k + 1) % 3], I[t + k]); }
+let tipV = 0; for (let i = 0; i < nV; i++) if (rep[i] === i && P[i * 3 + 2] < P[tipV * 3 + 2]) tipV = i;
+const G = new Float64Array(nV).fill(Infinity); G[tipV] = 0;
+{ const h = [[0, tipV]];
+  const push = (e) => { h.push(e); let i = h.length - 1; while (i > 0) { const q = (i - 1) >> 1; if (h[q][0] <= h[i][0]) break; [h[q], h[i]] = [h[i], h[q]]; i = q; } };
+  const pop = () => { const top = h[0], last = h.pop(); if (h.length) { h[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < h.length && h[l][0] < h[m][0]) m = l; if (r < h.length && h[r][0] < h[m][0]) m = r; if (m === i) break; [h[m], h[i]] = [h[i], h[m]]; i = m; } } return top; };
+  while (h.length) { const [d, v] = pop(); if (d > G[v] || d > 1.2) continue; for (const u of adj.get(v) || []) { const w = d + Math.hypot(P[u * 3] - P[v * 3], P[u * 3 + 1] - P[v * 3 + 1], P[u * 3 + 2] - P[v * 3 + 2]); if (w < G[u]) { G[u] = w; push([w, u]); } } } }
+// граница хвоста: первый слой, где радиус вырастает > 1.4× от медианы хвостовых слоёв
+const SL = 0.03, layers = [];
+for (let s0 = 0; s0 < 1.1; s0 += SL) {
+  const sel = []; for (let i = 0; i < nV; i++) if (rep[i] === i && G[i] >= s0 && G[i] < s0 + SL) sel.push(i);
+  if (!sel.length) { layers.push(null); continue; }
+  const c = [0, 1, 2].map((k) => sel.reduce((a, i) => a + P[i * 3 + k], 0) / sel.length);
+  let r = 0; for (const i of sel) r = Math.max(r, Math.hypot(P[i * 3] - c[0], P[i * 3 + 1] - c[1], P[i * 3 + 2] - c[2]));
+  layers.push({ s0, c, r });
+}
+const rs = layers.filter(Boolean).slice(3, 15).map((l) => l.r).sort((a, b) => a - b);
+const rMed = rs[rs.length >> 1];
+let TAIL_GEO = 0.7;
+for (let k = 6; k < layers.length; k++) if (layers[k] && layers[k].r > rMed * 1.4) { TAIL_GEO = layers[k].s0; break; }
 const tail = new Uint8Array(nV);
-const queue = [];
-for (let i = 0; i < nV; i++) if (rep[i] === i && P[i * 3 + 2] < -0.2 && P[i * 3 + 1] < 0.5) { tail[i] = 1; queue.push(i); }
-while (queue.length) {
-  const v = queue.pop();
-  for (const u of adj.get(v) || []) if (!tail[u] && inBox(u)) { tail[u] = 1; queue.push(u); }
-}
-for (let i = 0; i < nV; i++) tail[i] = tail[rep[i]];
+for (let i = 0; i < nV; i++) tail[i] = G[rep[i]] < TAIL_GEO ? 1 : 0;
 const tailIdx = []; for (let i = 0; i < nV; i++) if (tail[i]) tailIdx.push(i);
-console.log('tail vertices', tailIdx.length);
+console.log('tail vertices', tailIdx.length, 'tail length (geodesic)', TAIL_GEO.toFixed(2), 'layer radius', rMed.toFixed(3));
 
-// 2) Осевая линия хвоста: центры «слоёв» по расстоянию от корня, затем равномерно 9 точек (8 костей).
-const rootPt = [0, 0.74, 0.03];
-const dist = (i) => Math.hypot(P[i * 3] - rootPt[0], P[i * 3 + 1] - rootPt[1], P[i * 3 + 2] - rootPt[2]);
-const dMax = Math.max(...tailIdx.map(dist));
-const centers = [rootPt];
-const NB = 14;
-for (let b = 1; b < NB; b++) {
-  const sel = tailIdx.filter((i) => { const d = dist(i); return d >= dMax * b / NB && d < dMax * (b + 1) / NB; });
-  if (sel.length < 5) continue;
-  centers.push([0, 1, 2].map((k) => sel.reduce((s, i) => s + P[i * 3 + k], 0) / sel.length));
-}
-// кончик — самая дальняя вершина
-const far = tailIdx.reduce((a, i) => (dist(i) > dist(a) ? i : a), tailIdx[0]);
-centers.push([P[far * 3], P[far * 3 + 1], P[far * 3 + 2]]);
+// 2) Осевая линия: центры слоёв от корня к кончику, равномерно 9 точек (8 костей).
+const centers = layers.filter((l) => l && l.s0 < TAIL_GEO).map((l) => l.c).reverse();
+centers[centers.length - 1] = [P[tipV * 3], P[tipV * 3 + 1], P[tipV * 3 + 2]];
 const arc = [0]; for (let i = 1; i < centers.length; i++) arc.push(arc[i - 1] + Math.hypot(...[0, 1, 2].map((k) => centers[i][k] - centers[i - 1][k])));
 const L = arc[arc.length - 1];
 const NBONES = 8;
@@ -94,7 +95,6 @@ for (let j = 0; j <= NBONES; j++) {
   const t = (s - arc[k - 1]) / (arc[k] - arc[k - 1] || 1);
   chain.push([0, 1, 2].map((c) => centers[k - 1][c] * (1 - t) + centers[k][c] * t));
 }
-chain[0][0] = 0; // корень строго по центру
 console.log('tail length', L.toFixed(2), 'chain', chain.map((p) => p.map((v) => v.toFixed(2)).join(',')).join(' | '));
 
 // 3) Узлы костей: Tail0 — потомок Hips, остальные — цепочкой. Матрицы через bind-позу Hips.
