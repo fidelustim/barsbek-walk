@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=18';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=18';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=18';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=18';
+import { Input } from './input.js?v=19';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=19';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=19';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=19';
 
-const BUILD = 'v18';
+const BUILD = 'v19';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -48,6 +48,7 @@ let testMove = null;          // автотест: имитация джойст
 const simFps = parseFloat(new URLSearchParams(window.location.search).get('simfps')) || 0;
 let running = false;
 const camPos = new THREE.Vector3();
+let camTrack = null;
 const charReady = character.load('./assets/models/robot.glb').then(() => scene.add(character.root));
 
 function toast(text, ms = 2500) {
@@ -202,6 +203,7 @@ function updateCamera(dt) {
   const target = pivot.clone().addScaledVector(dir, dist);
   camPos.lerp(target, 1 - Math.exp(-dt * 18));
   if (camPos.distanceTo(target) > 1.5) camPos.copy(target);
+  if (camTrack) { if (camTrack.prev !== null) camTrack.maxDy = Math.max(camTrack.maxDy, Math.abs(camPos.y - camTrack.prev)); camTrack.prev = camPos.y; }
   camera.position.copy(camPos);
   camera.lookAt(pivot);
   // Слишком близко — делаем героя полупрозрачным не умеем без материалов, просто прячем.
@@ -279,6 +281,7 @@ $('ver').textContent = 'версия ' + BUILD;
 window.__game = {
   state: () => player ? { dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
   teleport: (x, y, z, camYaw) => { player.teleport(x, y, z); if (camYaw !== undefined) yaw = camYaw; },
+  camTrack: (on) => { if (on) camTrack = { maxDy: 0, prev: null }; const r = camTrack; if (!on) camTrack = null; return r && +r.maxDy.toFixed(4); },
   stick: (x, y) => { testMove = (x || y) ? { x, y } : null; },
   key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),
 };
