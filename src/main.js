@@ -44,6 +44,7 @@ let firstPerson = false;
 let autoCam = new URLSearchParams(window.location.search).get('autocam') !== '0'; // камера сама заходит за спину
 let lastManualLook = -10;
 let visualYOffset = 0;
+let testMove = null;        // автотест: имитация джойстика
 const simFps = parseFloat(new URLSearchParams(window.location.search).get('simfps')) || 0;      // сглаживание шага на ступеньку     // время последнего ручного поворота камеры
 let running = false;
 const camPos = new THREE.Vector3();
@@ -215,6 +216,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 1 / 20);
   if (running && player) {
     input.update();
+    if (testMove) { input.move.x = testMove.x; input.move.y = testMove.y; input.run = false; }
     const mv = input.move;
     const mag = Math.min(1, Math.hypot(mv.x, mv.y));
     const speed = (input.run ? 5.2 : 1.9) * mag;
@@ -277,5 +279,6 @@ $('ver').textContent = 'версия ' + BUILD;
 window.__game = {
   state: () => player ? { yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
   teleport: (x, y, z, camYaw) => { player.teleport(x, y, z); if (camYaw !== undefined) yaw = camYaw; },
+  stick: (x, y) => { testMove = (x || y) ? { x, y } : null; },
   key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),
 };
