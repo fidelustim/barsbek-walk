@@ -228,7 +228,7 @@ renderer.setAnimationLoop(() => {
     if (autoCam && moveYaw !== null && !firstPerson && mv.y > -0.2 && clock.elapsedTime - lastManualLook > 1.0) {
       const targetYaw = character.facing + Math.PI;
       const diff = Math.atan2(Math.sin(targetYaw - yaw), Math.cos(targetYaw - yaw));
-      const rate = (input.run ? 2.4 : 1.6) * mag;
+      const rate = (input.run ? 0.9 : 0.55) * mag; // мягко: при ходьбе вбок — плавный круг, а не карусель
       yaw += diff * Math.min(1, dt * rate);
     }
     player.step(dt, vx, vz, input.consumeJump());
