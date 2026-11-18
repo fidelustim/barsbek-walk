@@ -2,7 +2,7 @@
 // Запасной вариант — робот (?hero=robot). Интерфейс одинаковый: load / attach / update / play.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Tail } from './tail.js?v=24';
+import { Tail } from './tail.js?v=25';
 
 export const CHARACTER_HEIGHT = 1.8; // метры, рост героя
 
@@ -63,13 +63,12 @@ export class Character {
     this.hips = hips;
     this.isBarsbek = !!hips;
     this.clipSpeed = this.isBarsbek ? CLIP_SPEED : { walk: 1.6, run: 5 };
-    if (this.isBarsbek) this.tail = new Tail();
+    if (this.isBarsbek && model.getObjectByName('Tail0')) this.tailBones = new TailBones(model, this.root);
     this.play('idle', 0);
   }
 
   attach(scene) {
     scene.add(this.root);
-    if (this.tail) scene.add(this.tail.mesh);
   }
 
   _find(names) { for (const n of names) if (this.actions[n]) return this.actions[n]; return null; }
@@ -102,21 +101,13 @@ export class Character {
     if (this.current === this.map.run) this.current.timeScale = THREE.MathUtils.clamp(speed / this.clipSpeed.run, 0.6, 1.4);
     this.mixer?.update(dt);
 
-    if (this.tail && this.hips) {
+    if (this.tailBones) {
       this.root.updateMatrixWorld(true);
-      const anchor = new THREE.Vector3();
-      this.hips.getWorldPosition(anchor);
-      // точка выхода хвоста — сзади и чуть ниже центра таза
-      const back = new THREE.Vector3(0, 0, -1).applyQuaternion(this.root.quaternion);
-      anchor.addScaledVector(back, TAIL_OFFSET.back);
-      anchor.y += TAIL_OFFSET.up;
-      this.tail.update(dt, anchor, this.root.quaternion, groundY ?? this.root.position.y, speed, !grounded, this.time);
+      this.tailBones.update(dt, groundY ?? this.root.position.y, speed, !grounded, this.time);
     }
   }
 
-  setVisible(v) { this.root.visible = v; if (this.tail) this.tail.mesh.visible = v; }
-  resetTail() { this.tail?.reset(); }
+  setVisible(v) { this.root.visible = v; }
+  resetTail() { this.tailBones?.reset(); }
 }
 
-// Подбирается под модель (точка выхода из прорези в джоггерах).
-export const TAIL_OFFSET = { back: 0.14, up: -0.08 };

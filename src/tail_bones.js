@@ -1,0 +1,112 @@
+// Хвост Barsbek'а из модели Meshy, «оживлённый» кодом: у хвоста цепочка костей Tail0..Tail7
+// (добавлены при сборке, tools/build_character.mjs). Каждый кадр точки цепочки считаются пружинной
+// физикой (Verlet) — ленивое покачивание, запаздывание при поворотах, подъём при беге и прыжке —
+// и кости поворачиваются вдоль цепочки. Форма покоя = форма хвоста в модели (свисает и лежит сзади).
+import * as THREE from 'three';
+
+const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+
+export class TailBones {
+  constructor(model, root) {
+    this.root = root;
+    this.bones = [];
+    for (let i = 0; ; i++) { const b = model.getObjectByName('Tail' + i); if (!b) break; this.bones.push(b); }
+    const n = this.bones.length;
+    // Направление на следующую кость в системе кости (у последней — продолжение предыдущей).
+    this.childDir = this.bones.map((b, i) => (i < n - 1 ? this.bones[i + 1].position.clone().normalize() : null));
+    this.childDir[n - 1] = this.childDir[n - 2].clone();
+    // Форма покоя в системе персонажа, относительно Tail0 (снимаем в bind-позе).
+    model.updateMatrixWorld(true);
+    root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    const pts = this.bones.map((b) => b.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv));
+    const last = pts[n - 1].clone().add(pts[n - 1].clone().sub(pts[n - 2]));
+    pts.push(last);
+    const feetY = 0; // root стоит на ступнях
+    this.rest = pts.map((p) => p.clone().sub(pts[0]));
+    this.restHeight = pts.map((p) => p.y - feetY);
+    this.seg = []; for (let i = 0; i < n; i++) this.seg.push(pts[i + 1].distanceTo(pts[i]));
+    this.len = this.seg.reduce((a, b) => a + b, 0);
+    this.p = pts.map(() => new THREE.Vector3());
+    this.prev = pts.map(() => new THREE.Vector3());
+    this.lift = 0;
+    this.inited = false;
+  }
+
+  reset() { this.inited = false; }
+
+  // Форма-цель в системе персонажа: смесь «покоя» (как в модели) и «поднятого» хвоста (бег/прыжок).
+  target(i, out, sway) {
+    const t = i / (this.rest.length - 1);
+    out.copy(this.rest[i]);
+    // поднятый: почти горизонтально назад, лёгкий прогиб вниз и кончик вверх
+    const s = this.len * t;
+    const lx = 0, ly = -0.12 * Math.sin(t * Math.PI) + 0.06 * t * t, lz = -s;
+    out.x += (lx - out.x) * this.lift; out.y += (ly - out.y) * this.lift; out.z += (lz - out.z) * this.lift;
+    out.x += sway * t * t;
+    return out;
+  }
+
+  update(dt, groundY, speed, airborne, time) {
+    dt = Math.min(dt, 1 / 30);
+    const n = this.bones.length;
+    const pts = this.p, prev = this.prev;
+    // Сначала возвращаем кости в исходное положение и находим корень хвоста.
+    for (const b of this.bones) b.quaternion.identity();
+    this.bones[0].parent.updateMatrixWorld(true);
+    this.bones[0].updateMatrixWorld(true);
+    const anchor = this.bones[0].getWorldPosition(_v2);
+    const rq = this.root.getWorldQuaternion(_q2);
+
+    const liftT = THREE.MathUtils.clamp((speed - 2.0) / 3.5, 0, 0.8) + (airborne ? 0.35 : 0);
+    this.lift += (Math.min(1, liftT) - this.lift) * (1 - Math.exp(-dt * 5));
+    const sway = Math.sin(time * 1.6) * 0.07 + Math.sin(time * 0.57) * 0.05 + (speed > 0.3 ? Math.sin(time * 6) * 0.03 : 0);
+
+    if (!this.inited) {
+      for (let i = 0; i < pts.length; i++) {
+        this.target(i, pts[i], 0).applyQuaternion(rq).add(anchor); prev[i].copy(pts[i]);
+      }
+      this.inited = true;
+    }
+    pts[0].copy(anchor); prev[0].copy(anchor);
+    const fwd = _v.set(0, 0, 1).applyQuaternion(rq).clone();
+    const tgt = new THREE.Vector3();
+    for (let i = 1; i < pts.length; i++) {
+      const t = i / (pts.length - 1);
+      const c = pts[i], p = prev[i];
+      const vx = (c.x - p.x) * 0.9, vy = (c.y - p.y) * 0.9, vz = (c.z - p.z) * 0.9;
+      p.copy(c);
+      c.x += vx; c.y += vy - 2.0 * dt * dt; c.z += vz;
+      this.target(i, tgt, sway).applyQuaternion(rq).add(anchor);
+      c.lerp(tgt, THREE.MathUtils.lerp(0.45, 0.12, t));
+    }
+    for (let it = 0; it < 3; it++) {
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        _v.subVectors(b, a); const l = _v.length() || 1e-6;
+        b.copy(a).addScaledVector(_v, this.seg[i - 1] / l);
+      }
+      for (let i = 2; i < pts.length; i++) {
+        // не под пол: не ниже, чем хвост лежит в покое (он и так касается земли)
+        const minY = groundY + Math.min(this.restHeight[i], 0.3) * 0.92;
+        if (pts[i].y < minY) pts[i].y = minY;
+        // не вперёд, в ноги
+        const along = _v.subVectors(pts[i], anchor).dot(fwd);
+        if (along > -0.02) pts[i].addScaledVector(fwd, -0.02 - along);
+      }
+    }
+    // Поворачиваем кости вдоль цепочки.
+    for (let i = 0; i < n; i++) {
+      const bone = this.bones[i];
+      bone.updateMatrixWorld(true);
+      const wq = bone.getWorldQuaternion(_q);
+      const cur = this.childDir[i].clone().applyQuaternion(wq);
+      const want = new THREE.Vector3().subVectors(pts[i + 1], pts[i]).normalize();
+      const delta = new THREE.Quaternion().setFromUnitVectors(cur, want);
+      const newWorld = delta.multiply(wq);
+      const parentWorld = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+      bone.quaternion.copy(parentWorld.invert().multiply(newWorld));
+      bone.updateMatrixWorld(true);
+    }
+  }
+}

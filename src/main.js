@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=24';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=24';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=24';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=24';
+import { Input } from './input.js?v=25';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=25';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=25';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=25';
 
-const BUILD = 'v24';
+const BUILD = 'v25';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -53,7 +53,7 @@ const pivotSmooth = new THREE.Vector3();
 let pivotInit = false, camDistCur = 2.6;
 let camTrack = null;          // автотест: максимальный скачок камеры за кадр
 const heroParam = new URLSearchParams(window.location.search).get('hero');
-const HERO_URL = heroParam === 'robot' ? './assets/models/robot.glb' : './assets/models/barsbek.glb?v=24';
+const HERO_URL = heroParam === 'robot' ? './assets/models/robot.glb' : './assets/models/barsbek.glb?v=25';
 const charReady = character.load(HERO_URL, (e) => {
   if (e.lengthComputable && !$('loading').classList.contains('hidden')) $('loading-bar').style.width = (100 * e.loaded / e.total).toFixed(0) + '%';
 }).then(() => character.attach(scene));
@@ -308,7 +308,7 @@ $('ver').textContent = 'версия ' + BUILD;
 
 // Хук для автотестов и отладки из консоли.
 window.__game = {
-  state: () => player ? { tailTip: character.tail ? character.tail.p[character.tail.p.length - 1].toArray().map((v) => +v.toFixed(2)) : null, pitch: +pitch.toFixed(3), dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
+  state: () => player ? { tailTip: character.tailBones ? character.tailBones.p[character.tailBones.p.length - 1].toArray().map((v) => +v.toFixed(2)) : null, pitch: +pitch.toFixed(3), dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
   teleport: (x, y, z, camYaw) => { player.teleport(x, y, z); if (camYaw !== undefined) yaw = camYaw; },
   camTrack: (on) => { if (on) camTrack = { maxDy: 0, prev: null }; const r = camTrack; if (!on) camTrack = null; return r && +r.maxDy.toFixed(4); },
   snap: (w = 480, h = 640) => { const ow = innerWidth, oh = innerHeight; renderer.setPixelRatio(1); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.render(scene, camera); const url = renderer.domElement.toDataURL('image/jpeg', 0.85); renderer.setSize(ow, oh); camera.aspect = ow / oh; camera.updateProjectionMatrix(); return url; },
