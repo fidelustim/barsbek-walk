@@ -13,9 +13,11 @@ const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in win
 
 // ---------- Рендер ----------
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
+const params = new URLSearchParams(window.location.search);
+const prParam = parseFloat(params.get('pr'));
+renderer.setPixelRatio(prParam > 0 ? prParam : Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = params.get('shadows') !== '0';
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -245,3 +247,9 @@ renderer.setAnimationLoop(() => {
 });
 
 buildMenu();
+
+// Хук для автотестов и отладки из консоли.
+window.__game = {
+  state: () => player ? { feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
+  key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),
+};
