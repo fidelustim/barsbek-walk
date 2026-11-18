@@ -29,6 +29,12 @@ export class Physics {
     this.world.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(pos), new Uint32Array(idx)));
   }
 
+  // Готовые вершины/индексы (например, сетка земли из terrain.js) — без клонирования геометрии Three.js,
+  // чтобы не платить за лишнюю копию больших массивов.
+  addTrimeshRaw(verts, idx) {
+    this.world.createCollider(RAPIER.ColliderDesc.trimesh(new Float32Array(verts), new Uint32Array(idx)));
+  }
+
   debugMesh() {
     const group = new THREE.Group();
     const mat = new THREE.MeshBasicMaterial({ color: 0xff3366, wireframe: true, transparent: true, opacity: 0.5 });
@@ -180,7 +186,7 @@ export function upQuaternion(up) {
   return q;
 }
 
-function percentile(sorted, p) {
+export function percentile(sorted, p) {
   if (!sorted.length) return 0;
   return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(p * (sorted.length - 1))))];
 }

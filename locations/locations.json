@@ -6,12 +6,57 @@
     "type": "procedural"
   },
   {
+    "id": "snow-street",
+    "name": "Снежная улица",
+    "description": "Скан улицы (пример Spark) · ходить по неровной земле",
+    "type": "splat",
+    "url": "https://sparkjs.dev/assets/splats/snow-street.spz",
+    "up": "-y",
+    "collision": "terrain",
+    "indoor": false,
+    "sky": "0x9db6cc"
+  },
+  {
+    "id": "valley",
+    "name": "Горная долина",
+    "description": "Скан долины с горами (пример Spark) · рельеф, склоны",
+    "type": "splat",
+    "url": "https://sparkjs.dev/assets/splats/valley.spz",
+    "up": "-y",
+    "collision": "terrain",
+    "indoor": false,
+    "sky": "0x8fb3d4"
+  },
+  {
+    "id": "fireplace",
+    "name": "Комната с камином",
+    "description": "Скан комнаты (пример Spark) · уютная, 4 МБ",
+    "type": "splat",
+    "url": "https://sparkjs.dev/assets/splats/fireplace.spz",
+    "up": "-y",
+    "collision": "auto",
+    "indoor": true,
+    "sky": null
+  },
+  {
+    "id": "forge",
+    "name": "Кузница",
+    "description": "Скан кузницы (пример Spark) · маленькое помещение",
+    "type": "splat",
+    "url": "https://sparkjs.dev/assets/splats/forge.spz",
+    "up": "-y",
+    "collision": "auto",
+    "indoor": true,
+    "sky": null
+  },
+  {
     "id": "demo-room",
     "name": "Демо-комната (скан)",
     "description": "Чужой пример гауссова сплата, 8 МБ — пока нет нашей квартиры",
     "type": "splat",
     "url": "https://storage.googleapis.com/forge-dev-public/painted_bedroom.spz",
     "up": "auto",
-    "collision": "auto"
+    "collision": "auto",
+    "indoor": true
   }
 ]

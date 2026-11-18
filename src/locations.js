@@ -1,7 +1,8 @@
 // Загрузка локаций. Тип "procedural" — сцена из кода, "splat" — скан (гауссов сплат).
 import * as THREE from 'three';
 import { SplatMesh } from '@sparkjsdev/spark';
-import { sampleSplats, guessUp, upQuaternion, buildSplatCollision } from './physics.js?v=34';
+import { sampleSplats, guessUp, upQuaternion, buildSplatCollision } from './physics.js?v=35';
+import { buildSplatTerrainCollision } from './terrain.js?v=35';
 
 export async function loadLocationList() {
   const res = await fetch('./locations/locations.json', { cache: 'no-cache' });
@@ -101,7 +102,7 @@ export function buildYard(scene, physics) {
 export async function buildSplat(scene, physics, src, loc, onProgress, onStatus) {
   const group = new THREE.Group();
   scene.add(group);
-  scene.background = new THREE.Color(0x1a1f26);
+  scene.background = new THREE.Color(loc.sky ? Number(loc.sky) : 0x1a1f26);
   scene.fog = null;
   group.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
 
@@ -119,14 +120,20 @@ export async function buildSplat(scene, physics, src, loc, onProgress, onStatus)
   mesh.quaternion.copy(quat);
   group.add(mesh);
 
-  const col = buildSplatCollision(physics, sample, quat, loc.collisionOptions || {});
+  // terrain — неровная земля (улица, горы): сетка высот + trimesh. auto — плоский пол (помещения).
+  const colOpts = loc.collisionOptions || {};
+  const col = loc.collision === 'terrain'
+    ? buildSplatTerrainCollision(physics, sample, quat, colOpts)
+    : buildSplatCollision(physics, sample, quat, colOpts);
   const spawn = loc.spawn ? new THREE.Vector3(...loc.spawn) : col.spawn;
 
   return {
     group, mesh, spawn, up, sample,
     floorY: col.floorY, ceilY: col.ceilY, bounds: col.bounds,
-    info: `сплатов: ${sample.total.toLocaleString('ru')} · верх: ${up} · пол y=${col.floorY.toFixed(2)} · потолок ${(col.ceilY - col.floorY).toFixed(2)} м · препятствий: ${col.boxes}`,
+    info: loc.collision === 'terrain'
+      ? `сплатов: ${sample.total.toLocaleString('ru')} · верх: ${up} · земля: сетка ${col.terrain.gw}×${col.terrain.gh} по ${col.terrain.cell.toFixed(2)} м · препятствий: ${col.boxes}`
+      : `сплатов: ${sample.total.toLocaleString('ru')} · верх: ${up} · пол y=${col.floorY.toFixed(2)} · потолок ${(col.ceilY - col.floorY).toFixed(2)} м · препятствий: ${col.boxes}`,
     dispose() { scene.remove(group); mesh.dispose(); },
-    indoor: true,
+    indoor: loc.indoor !== false && loc.collision !== 'terrain',
   };
 }
