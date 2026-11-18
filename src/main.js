@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=32';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=32';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=32';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=32';
+import { Input } from './input.js?v=33';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=33';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=33';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=33';
 
-const BUILD = 'v32';
+const BUILD = 'v33';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -54,8 +54,8 @@ let pivotInit = false, camDistCur = 2.6;
 let camTrack = null;          // автотест: максимальный скачок камеры за кадр
 // Выбор модели героя: ?hero=v1 | v2 | robot, или переключатель в меню (запоминается).
 const HEROES = {
-  v2: { url: './assets/models/barsbek.glb?v=32', name: 'Барсбек v2 (новый)' },
-  v1: { url: './assets/models/barsbek_v1.glb?v=32', name: 'Барсбек v1 (старый)', tailV1: true },
+  v2: { url: './assets/models/barsbek.glb?v=33', name: 'Барсбек v2 (новый)' },
+  v1: { url: './assets/models/barsbek_v1.glb?v=33', name: 'Барсбек v1 (старый)', tailV1: true },
   robot: { url: './assets/models/robot.glb', name: 'Робот (тест)' },
 };
 const heroParam = new URLSearchParams(window.location.search).get('hero');

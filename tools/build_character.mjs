@@ -157,6 +157,63 @@ JA.setArray(Jarr); WA.setArray(Warr);
 console.log('reweighted', changed, 'vertices to', NBONES, 'tail bones');
 function THREEsmooth(e0, e1, x) { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); }
 
+// ---------- Сглаживание «шипов» меха на голове и шее ----------
+// Meshy сделал мех на морде/шее острыми шипами с белыми кончиками — в игре это выглядит белым налётом.
+// Сглаживание Таубина (без усадки) только для вершин выше плеч; плавно затухает к плечам.
+// Соседство берётся по «сваренным» вершинам, чтобы не порвать швы UV.
+if (process.env.SMOOTH_HEAD !== '0') {
+  const Y0 = +(process.env.SMOOTH_Y0 || 1.38), Y1 = Y0 + 0.08;   // ниже Y0 — не трогаем, от Y1 — в полную силу
+  const ITER = +(process.env.SMOOTH_ITER || 6);
+  const Q = new Float32Array(P);                                  // рабочие позиции (по rep)
+  const w = new Float32Array(nV);
+  for (let i = 0; i < nV; i++) { const y = P[i * 3 + 1]; w[i] = y <= Y0 ? 0 : y >= Y1 ? 1 : (y - Y0) / (Y1 - Y0); }
+  const reps = []; for (let i = 0; i < nV; i++) if (rep[i] === i && w[i] > 0) reps.push(i);
+  const tmp = new Float32Array(nV * 3);
+  const step = (lam) => {
+    for (const v of reps) {
+      const ns = adj.get(v); if (!ns || !ns.size) continue;
+      let cx = 0, cy = 0, cz = 0; for (const u of ns) { cx += Q[u * 3]; cy += Q[u * 3 + 1]; cz += Q[u * 3 + 2]; }
+      const n = ns.size, k = lam * w[v];
+      tmp[v * 3] = Q[v * 3] + k * (cx / n - Q[v * 3]);
+      tmp[v * 3 + 1] = Q[v * 3 + 1] + k * (cy / n - Q[v * 3 + 1]);
+      tmp[v * 3 + 2] = Q[v * 3 + 2] + k * (cz / n - Q[v * 3 + 2]);
+    }
+    for (const v of reps) { Q[v * 3] = tmp[v * 3]; Q[v * 3 + 1] = tmp[v * 3 + 1]; Q[v * 3 + 2] = tmp[v * 3 + 2]; }
+  };
+  for (let it = 0; it < ITER; it++) { step(0.6); step(-0.63); }
+  let moved = 0, maxD = 0;
+  for (let i = 0; i < nV; i++) {
+    const r = rep[i]; if (!w[r]) continue;
+    const d = Math.hypot(Q[r * 3] - P[i * 3], Q[r * 3 + 1] - P[i * 3 + 1], Q[r * 3 + 2] - P[i * 3 + 2]);
+    maxD = Math.max(maxD, d); moved++;
+    P[i * 3] = Q[r * 3]; P[i * 3 + 1] = Q[r * 3 + 1]; P[i * 3 + 2] = Q[r * 3 + 2];
+  }
+  prim.getAttribute('POSITION').setArray(P);
+  // нормали пересчитает three.js не будет — пересчитываем здесь (сглаженные, по сваренным вершинам)
+  const N = new Float32Array(nV * 3);
+  for (let t = 0; t < I.length; t += 3) {
+    const a = rep[I[t]], b = rep[I[t + 1]], c = rep[I[t + 2]];
+    const ux = P[b * 3] - P[a * 3], uy = P[b * 3 + 1] - P[a * 3 + 1], uz = P[b * 3 + 2] - P[a * 3 + 2];
+    const vx = P[c * 3] - P[a * 3], vy = P[c * 3 + 1] - P[a * 3 + 1], vz = P[c * 3 + 2] - P[a * 3 + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const q of [a, b, c]) { N[q * 3] += nx; N[q * 3 + 1] += ny; N[q * 3 + 2] += nz; }
+  }
+  const NA = prim.getAttribute('NORMAL');
+  if (NA) {
+    const old = NA.getArray();
+    for (let i = 0; i < nV; i++) {
+      if (!w[rep[i]]) continue; // ниже плеч нормали Meshy не трогаем
+      const r = rep[i]; const l = Math.hypot(N[r * 3], N[r * 3 + 1], N[r * 3 + 2]) || 1;
+      const k = w[r];
+      const nx = N[r * 3] / l, ny = N[r * 3 + 1] / l, nz = N[r * 3 + 2] / l;
+      let ox = old[i * 3] * (1 - k) + nx * k, oy = old[i * 3 + 1] * (1 - k) + ny * k, oz = old[i * 3 + 2] * (1 - k) + nz * k;
+      const ol = Math.hypot(ox, oy, oz) || 1; old[i * 3] = ox / ol; old[i * 3 + 1] = oy / ol; old[i * 3 + 2] = oz / ol;
+    }
+    NA.setArray(old);
+  }
+  console.log('head smoothing: vertices', moved, 'max shift', (maxD * 100).toFixed(1), 'cm', 'from y', Y0);
+}
+
 // Текстура: JPEG 2048, quality 85 (через Pillow).
 for (const tex of root.listTextures()) {
   fs.writeFileSync('/tmp/bw_tex_in', Buffer.from(tex.getImage()));
