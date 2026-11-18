@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=19';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=19';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=19';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=19';
+import { Input } from './input.js?v=20';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=20';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=20';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=20';
 
-const BUILD = 'v19';
+const BUILD = 'v20';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -48,7 +48,9 @@ let testMove = null;          // автотест: имитация джойст
 const simFps = parseFloat(new URLSearchParams(window.location.search).get('simfps')) || 0;
 let running = false;
 const camPos = new THREE.Vector3();
-let camTrack = null;
+const pivotSmooth = new THREE.Vector3();
+let pivotInit = false, camDistCur = 2.6;
+let camTrack = null;          // автотест: максимальный скачок камеры за кадр
 const charReady = character.load('./assets/models/robot.glb').then(() => scene.add(character.root));
 
 function toast(text, ms = 2500) {
@@ -158,6 +160,7 @@ async function startLocation(loc, src) {
     player.teleport(location.spawn.x, location.spawn.y, location.spawn.z);
     // В помещении камера ближе.
     camDist = location.indoor ? 1.9 : 3.2;
+    camDistCur = camDist; pivotInit = false;
     firstPerson = false;
     character.root.position.copy(location.spawn);
     camPos.copy(location.spawn).add(new THREE.Vector3(0, 1.6, camDist));
@@ -193,15 +196,26 @@ function updateCamera(dt) {
     return;
   }
   character.setVisible(true);
-  const pivot = feet.clone().add(new THREE.Vector3(0, CHARACTER_HEIGHT * 0.8, 0));
+  // Точка, куда смотрит камера, следует за ВИДИМОЙ моделью (со сглаженным шагом на ступеньку),
+  // а по высоте — ещё мягче: ступеньки и мелкие неровности не дёргают камеру.
+  const vis = character.root.position;
+  if (!pivotInit || pivotSmooth.distanceTo(vis) > 2) { pivotSmooth.copy(vis); pivotInit = true; }
+  pivotSmooth.x = vis.x; pivotSmooth.z = vis.z;
+  const vRate = player.grounded ? 6 : 10; // в прыжке/падении чуть быстрее
+  pivotSmooth.y += (vis.y - pivotSmooth.y) * (1 - Math.exp(-dt * vRate));
+  const pivot = pivotSmooth.clone().add(new THREE.Vector3(0, CHARACTER_HEIGHT * 0.8, 0));
   const dir = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
   // Камера не должна проходить сквозь стены: луч от головы к камере.
-  let dist = camDist;
+  // Приближаемся к стене быстро, отдаляемся плавно — без «пульсации» на ступеньках.
+  let want = camDist;
   const ray = new RAPIER.Ray(pivot, dir);
   const hit = physics.world.castRay(ray, camDist, true, undefined, undefined, player.collider);
-  if (hit) dist = Math.max(0.35, hit.timeOfImpact - 0.15);
+  if (hit) want = Math.max(0.35, hit.timeOfImpact - 0.15);
+  if (want < camDistCur) camDistCur = want;
+  else camDistCur += (want - camDistCur) * (1 - Math.exp(-dt * 3));
+  const dist = camDistCur;
   const target = pivot.clone().addScaledVector(dir, dist);
-  camPos.lerp(target, 1 - Math.exp(-dt * 18));
+  camPos.lerp(target, 1 - Math.exp(-dt * 20));
   if (camPos.distanceTo(target) > 1.5) camPos.copy(target);
   if (camTrack) { if (camTrack.prev !== null) camTrack.maxDy = Math.max(camTrack.maxDy, Math.abs(camPos.y - camTrack.prev)); camTrack.prev = camPos.y; }
   camera.position.copy(camPos);
