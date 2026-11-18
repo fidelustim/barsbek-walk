@@ -108,7 +108,7 @@ export class Player {
     // Пока летим вверх, касание края препятствия не считаем «стоянием на земле».
     this.grounded = this.vy > 0 ? false : this.ctrl.computedGrounded();
     if (this.grounded && this.vy < 0) this.vy = -1;
-    if (!this.grounded && m.y > desired.y + 1e-4 && this.vy > 0) this.vy = 0; // упёрся головой
+    if (this.vy > 0 && m.y < desired.y * 0.3) this.vy = 0; // упёрся головой в потолок
     this.body.setNextKinematicTranslation({ x: t.x + m.x, y: t.y + m.y, z: t.z + m.z });
   }
 }
