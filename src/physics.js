@@ -105,7 +105,8 @@ export class Player {
     if (this.vy > 0) this.ctrl.disableSnapToGround(); else this.ctrl.enableSnapToGround(0.3);
     this.ctrl.computeColliderMovement(this.collider, desired);
     const m = this.ctrl.computedMovement();
-    this.grounded = this.ctrl.computedGrounded();
+    // Пока летим вверх, касание края препятствия не считаем «стоянием на земле».
+    this.grounded = this.vy > 0 ? false : this.ctrl.computedGrounded();
     if (this.grounded && this.vy < 0) this.vy = -1;
     if (!this.grounded && m.y > desired.y + 1e-4 && this.vy > 0) this.vy = 0; // упёрся головой
     this.body.setNextKinematicTranslation({ x: t.x + m.x, y: t.y + m.y, z: t.z + m.z });
