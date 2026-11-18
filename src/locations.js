@@ -1,7 +1,7 @@
 // Загрузка локаций. Тип "procedural" — сцена из кода, "splat" — скан (гауссов сплат).
 import * as THREE from 'three';
 import { SplatMesh } from '@sparkjsdev/spark';
-import { sampleSplats, guessUp, upQuaternion, buildSplatCollision } from './physics.js';
+import { sampleSplats, guessUp, upQuaternion, buildSplatCollision } from './physics.js?v=13';
 
 export async function loadLocationList() {
   const res = await fetch('./locations/locations.json', { cache: 'no-cache' });

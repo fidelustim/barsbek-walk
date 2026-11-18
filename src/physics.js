@@ -114,7 +114,10 @@ export class Player {
     // Если при ходьбе упёрлись во что-то низкое (≤ STEP_MAX) с ровным верхом — поднимаем героя на него.
     const dLen = Math.hypot(desired.x, desired.z);
     const mLen = Math.hypot(m.x, m.z);
-    if (dLen > 1e-4 && mLen < dLen * 0.6 && (this.grounded || this.sinceGrounded < 0.1) && this.vy <= 0) {
+    // Упор считаем по продвижению вдоль желаемого направления: при подходе под углом
+    // герой скользит вдоль ступеньки, и общая длина шага почти не падает.
+    const along = dLen > 1e-4 ? (m.x * desired.x + m.z * desired.z) / dLen : 0;
+    if (dLen > 1e-4 && along < dLen * 0.9 && (this.grounded || this.sinceGrounded < 0.15) && this.vy <= 0) {
       const up = this.tryStepUp(t, desired.x / dLen, desired.z / dLen, dLen);
       if (up) { nx = up.x; ny = up.y; nz = up.z; this.grounded = true; this.stepped = up.h; }
     }
@@ -126,13 +129,17 @@ export class Player {
     const w = this.physics.world;
     const feetY = t.y - this.halfHeight - this.radius;
     // 1) Есть ли впереди ровная поверхность не выше STEP_MAX?
-    const probe = this.radius + 0.06;
-    const origin = { x: t.x + dx * probe, y: feetY + STEP_MAX + 0.05, z: t.z + dz * probe };
-    const hit = w.castRayAndGetNormal(new RAPIER.Ray(origin, { x: 0, y: -1, z: 0 }), STEP_MAX + 0.05, true,
-      undefined, undefined, this.collider);
-    if (!hit || hit.normal.y < 0.75) return null;
-    const h = origin.y - hit.timeOfImpact - feetY;
-    if (h < 0.02 || h > STEP_MAX) return null;
+    // Несколько лучей вниз на разном расстоянии впереди (под углом край дальше).
+    let h = -1;
+    for (const probe of [this.radius + 0.05, this.radius + 0.12, this.radius + 0.22]) {
+      const origin = { x: t.x + dx * probe, y: feetY + STEP_MAX + 0.05, z: t.z + dz * probe };
+      const hit = w.castRayAndGetNormal(new RAPIER.Ray(origin, { x: 0, y: -1, z: 0 }), STEP_MAX + 0.05, true,
+        undefined, undefined, this.collider);
+      if (!hit || hit.normal.y < 0.75) continue;
+      const hh = origin.y - hit.timeOfImpact - feetY;
+      if (hh >= 0.02 && hh <= STEP_MAX) { h = hh; break; }
+    }
+    if (h < 0) return null;
     // 2) Хватает ли места: капсула, поднятая на h, свободно проходит вперёд.
     const rot = { x: 0, y: 0, z: 0, w: 1 };
     const lifted = { x: t.x, y: t.y + h + 0.02, z: t.z };

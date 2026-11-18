@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Барсбек гуляет</title>
-<link rel="stylesheet" href="./src/style.css" />
+<link rel="stylesheet" href="./src/style.css?v=13" />
 <script type="importmap">
 {
   "imports": {
@@ -21,7 +21,7 @@
 
 <div id="menu" class="panel">
   <h1>Барсбек гуляет</h1>
-  <p class="sub">Выбери локацию</p>
+  <p class="sub">Выбери локацию <span id="ver" style="opacity:.5;font-size:12px"></span></p>
   <div id="locations"></div>
   <label class="file-btn">
     Открыть свой скан (.spz / .ply)
@@ -55,6 +55,6 @@
   <button id="btn-jump" class="round big">↑</button>
 </div>
 
-<script type="module" src="./src/main.js"></script>
+<script type="module" src="./src/main.js?v=13"></script>
 </body>
 </html>

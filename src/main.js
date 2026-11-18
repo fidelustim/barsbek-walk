@@ -2,11 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js';
-import { Character, CHARACTER_HEIGHT } from './character.js';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js';
-import { loadLocationList, buildYard, buildSplat } from './locations.js';
+import { Input } from './input.js?v=13';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=13';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=13';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=13';
 
+const BUILD = 'v13';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -270,6 +271,7 @@ renderer.setAnimationLoop(() => {
 });
 
 buildMenu();
+$('ver').textContent = 'версия ' + BUILD;
 
 // Хук для автотестов и отладки из консоли.
 window.__game = {
