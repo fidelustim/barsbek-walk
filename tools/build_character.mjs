@@ -144,7 +144,7 @@ for (const i of tailIdx) {
   // кость сегмента и следующая (на последнем сегменте всё на последнюю кость)
   const j0 = newJoints[best.seg], j1 = newJoints[Math.min(NBONES - 1, best.seg + 1)];
   const tt = best.seg === NBONES - 1 ? 0 : best.t;
-  const tailW = THREEsmooth(0.03, 0.12, sNorm);
+  const tailW = THREEsmooth(-0.02, 0.22, sNorm); // широкий плавный переход от таза к хвосту — без «перелома» у корня
   w.set(j0, (w.get(j0) || 0) + (1 - tt) * tailW);
   w.set(j1, (w.get(j1) || 0) + tt * tailW);
   for (let k = 0; k < 4; k++) if (Warr[i * 4 + k] > 0) w.set(Jarr[i * 4 + k], (w.get(Jarr[i * 4 + k]) || 0) + Warr[i * 4 + k] * (1 - tailW));

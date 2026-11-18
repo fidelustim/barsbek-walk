@@ -1,10 +1,13 @@
-// Хвост Barsbek'а из модели Meshy, «оживлённый» кодом: у хвоста цепочка костей Tail0..Tail7
+// Хвост Барсбека из модели Meshy, «оживлённый» кодом: у хвоста цепочка костей Tail0..Tail7
 // (добавлены при сборке, tools/build_character.mjs). Каждый кадр точки цепочки считаются пружинной
-// физикой (Verlet) — ленивое покачивание, запаздывание при поворотах, подъём при беге и прыжке —
-// и кости поворачиваются вдоль цепочки. Форма покоя = форма хвоста в модели (свисает и лежит сзади).
+// физикой (Verlet) и кости поворачиваются вдоль цепочки.
+// Форма покоя = форма хвоста в модели, привязана к ТАЗУ (а не ко всему персонажу), чтобы корень
+// не перегибался, когда таз качается при ходьбе. Подъём при беге/прыжке растёт от корня к кончику,
+// а угол между соседними звеньями ограничен — хвост гнётся плавной дугой, без «перелома».
 import * as THREE from 'three';
 
-const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+const _v = new THREE.Vector3();
+const MAX_BEND = THREE.MathUtils.degToRad(28); // макс. угол между соседними звеньями
 
 export class TailBones {
   constructor(model, root) {
@@ -12,38 +15,39 @@ export class TailBones {
     this.bones = [];
     for (let i = 0; ; i++) { const b = model.getObjectByName('Tail' + i); if (!b) break; this.bones.push(b); }
     const n = this.bones.length;
-    // Направление на следующую кость в системе кости (у последней — продолжение предыдущей).
+    this.hips = this.bones[0].parent;
     this.childDir = this.bones.map((b, i) => (i < n - 1 ? this.bones[i + 1].position.clone().normalize() : null));
     this.childDir[n - 1] = this.childDir[n - 2].clone();
-    // Форма покоя в системе персонажа, относительно Tail0 (снимаем в bind-позе).
-    model.updateMatrixWorld(true);
-    root.updateMatrixWorld(true);
-    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
-    const pts = this.bones.map((b) => b.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv));
-    const last = pts[n - 1].clone().add(pts[n - 1].clone().sub(pts[n - 2]));
-    pts.push(last);
-    const feetY = 0; // root стоит на ступнях
-    this.rest = pts.map((p) => p.clone().sub(pts[0]));
-    this.restHeight = pts.map((p) => p.y - feetY);
-    this.seg = []; for (let i = 0; i < n; i++) this.seg.push(pts[i + 1].distanceTo(pts[i]));
+    // Точки цепочки в bind-позе: в системе таза (для покоя) и высоты над ступнями.
+    model.updateMatrixWorld(true); root.updateMatrixWorld(true);
+    const world = this.bones.map((b) => b.getWorldPosition(new THREE.Vector3()));
+    world.push(world[n - 1].clone().add(world[n - 1].clone().sub(world[n - 2])));
+    const hipsInv = new THREE.Matrix4().copy(this.hips.matrixWorld).invert();
+    const rootInv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    this.restHips = world.map((p) => p.clone().applyMatrix4(hipsInv));
+    this.restHeight = world.map((p) => p.clone().applyMatrix4(rootInv).y);
+    this.seg = []; for (let i = 0; i < n; i++) this.seg.push(world[i + 1].distanceTo(world[i]));
     this.len = this.seg.reduce((a, b) => a + b, 0);
-    this.p = pts.map(() => new THREE.Vector3());
-    this.prev = pts.map(() => new THREE.Vector3());
+    this.p = world.map(() => new THREE.Vector3());
+    this.prev = world.map(() => new THREE.Vector3());
     this.lift = 0;
     this.inited = false;
   }
 
   reset() { this.inited = false; }
 
-  // Форма-цель в системе персонажа: смесь «покоя» (как в модели) и «поднятого» хвоста (бег/прыжок).
-  target(i, out, sway) {
-    const t = i / (this.rest.length - 1);
-    out.copy(this.rest[i]);
-    // поднятый: почти горизонтально назад, лёгкий прогиб вниз и кончик вверх
-    const s = this.len * t;
-    const lx = 0, ly = -0.12 * Math.sin(t * Math.PI) + 0.06 * t * t, lz = -s;
-    out.x += (lx - out.x) * this.lift; out.y += (ly - out.y) * this.lift; out.z += (lz - out.z) * this.lift;
-    out.x += sway * t * t;
+  // Цель для точки i в мире.
+  target(i, out, sway, rq) {
+    const t = i / (this.restHips.length - 1);
+    out.copy(this.restHips[i]).applyMatrix4(this.hips.matrixWorld); // покой — вместе с тазом
+    if (this.lift > 0.001 && i > 0) {
+      // поднятый хвост: от корня плавной дугой назад, кончик чуть вверх
+      const root0 = new THREE.Vector3().copy(this.restHips[0]).applyMatrix4(this.hips.matrixWorld);
+      const s = this.len * t;
+      const up = new THREE.Vector3(0, -0.28 * s + 0.55 * s * s / this.len, -s).applyQuaternion(rq).add(root0);
+      out.lerp(up, this.lift * THREE.MathUtils.smoothstep(t, 0.0, 0.6)); // у корня слабее
+    }
+    out.addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(rq), sway * t * t); // покачивание
     return out;
   }
 
@@ -51,62 +55,78 @@ export class TailBones {
     dt = Math.min(dt, 1 / 30);
     const n = this.bones.length;
     const pts = this.p, prev = this.prev;
-    // Сначала возвращаем кости в исходное положение и находим корень хвоста.
     for (const b of this.bones) b.quaternion.identity();
-    this.bones[0].parent.updateMatrixWorld(true);
-    this.bones[0].updateMatrixWorld(true);
-    const anchor = this.bones[0].getWorldPosition(_v2);
-    const rq = this.root.getWorldQuaternion(_q2);
+    this.hips.updateMatrixWorld(true);
+    const rq = this.root.getWorldQuaternion(new THREE.Quaternion());
+    const anchor = this.bones[0].getWorldPosition(new THREE.Vector3());
 
-    const liftT = THREE.MathUtils.clamp((speed - 2.0) / 3.5, 0, 0.8) + (airborne ? 0.35 : 0);
+    const liftT = THREE.MathUtils.clamp((speed - 2.0) / 3.5, 0, 0.8) + (airborne ? 0.3 : 0);
     this.lift += (Math.min(1, liftT) - this.lift) * (1 - Math.exp(-dt * 5));
-    const sway = Math.sin(time * 1.6) * 0.07 + Math.sin(time * 0.57) * 0.05 + (speed > 0.3 ? Math.sin(time * 6) * 0.03 : 0);
+    const sway = Math.sin(time * 1.6) * 0.06 + Math.sin(time * 0.57) * 0.04 + (speed > 0.3 ? Math.sin(time * 6) * 0.025 : 0);
 
+    const tgt = new THREE.Vector3();
     if (!this.inited) {
-      for (let i = 0; i < pts.length; i++) {
-        this.target(i, pts[i], 0).applyQuaternion(rq).add(anchor); prev[i].copy(pts[i]);
-      }
+      for (let i = 0; i < pts.length; i++) { this.target(i, pts[i], 0, rq); prev[i].copy(pts[i]); }
       this.inited = true;
     }
     pts[0].copy(anchor); prev[0].copy(anchor);
-    const fwd = _v.set(0, 0, 1).applyQuaternion(rq).clone();
-    const tgt = new THREE.Vector3();
     for (let i = 1; i < pts.length; i++) {
       const t = i / (pts.length - 1);
       const c = pts[i], p = prev[i];
       const vx = (c.x - p.x) * 0.9, vy = (c.y - p.y) * 0.9, vz = (c.z - p.z) * 0.9;
       p.copy(c);
       c.x += vx; c.y += vy - 2.0 * dt * dt; c.z += vz;
-      this.target(i, tgt, sway).applyQuaternion(rq).add(anchor);
-      c.lerp(tgt, THREE.MathUtils.lerp(0.45, 0.12, t));
+      this.target(i, tgt, sway, rq);
+      c.lerp(tgt, i === 1 ? 1 : THREE.MathUtils.lerp(0.55, 0.12, t)); // первое звено жёстко с тазом
     }
+    const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(rq);
+    const d0 = new THREE.Vector3(), d1 = new THREE.Vector3(), ax = new THREE.Vector3();
     for (let it = 0; it < 3; it++) {
-      for (let i = 1; i < pts.length; i++) {
-        const a = pts[i - 1], b = pts[i];
-        _v.subVectors(b, a); const l = _v.length() || 1e-6;
-        b.copy(a).addScaledVector(_v, this.seg[i - 1] / l);
+      for (let i = 1; i < pts.length; i++) { // длины звеньев
+        _v.subVectors(pts[i], pts[i - 1]); const l = _v.length() || 1e-6;
+        pts[i].copy(pts[i - 1]).addScaledVector(_v, this.seg[i - 1] / l);
+      }
+      for (let i = 2; i < pts.length; i++) { // ограничение сгиба
+        d0.subVectors(pts[i - 1], pts[i - 2]).normalize();
+        d1.subVectors(pts[i], pts[i - 1]).normalize();
+        if (d0.angleTo(d1) > MAX_BEND) {
+          ax.crossVectors(d0, d1); if (ax.lengthSq() < 1e-8) continue; ax.normalize();
+          d1.copy(d0).applyAxisAngle(ax, MAX_BEND);
+          pts[i].copy(pts[i - 1]).addScaledVector(d1, this.seg[i - 1]);
+        }
       }
       for (let i = 2; i < pts.length; i++) {
-        // не под пол: не ниже, чем хвост лежит в покое (он и так касается земли)
-        const minY = groundY + Math.min(this.restHeight[i], 0.3) * 0.92;
+        const minY = groundY + Math.min(this.restHeight[i], 0.3) * 0.92; // не под пол
         if (pts[i].y < minY) pts[i].y = minY;
-        // не вперёд, в ноги
-        const along = _v.subVectors(pts[i], anchor).dot(fwd);
+        const along = _v.subVectors(pts[i], anchor).dot(fwd);          // не вперёд, в ноги
         if (along > -0.02) pts[i].addScaledVector(fwd, -0.02 - along);
       }
     }
-    // Поворачиваем кости вдоль цепочки.
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < n; i++) { // кости вдоль цепочки
       const bone = this.bones[i];
       bone.updateMatrixWorld(true);
-      const wq = bone.getWorldQuaternion(_q);
+      const wq = bone.getWorldQuaternion(new THREE.Quaternion());
       const cur = this.childDir[i].clone().applyQuaternion(wq);
       const want = new THREE.Vector3().subVectors(pts[i + 1], pts[i]).normalize();
-      const delta = new THREE.Quaternion().setFromUnitVectors(cur, want);
-      const newWorld = delta.multiply(wq);
+      const newWorld = new THREE.Quaternion().setFromUnitVectors(cur, want).multiply(wq);
       const parentWorld = bone.parent.getWorldQuaternion(new THREE.Quaternion());
       bone.quaternion.copy(parentWorld.invert().multiply(newWorld));
       bone.updateMatrixWorld(true);
     }
+  }
+
+  // Для автотеста: макс. угол сгиба между звеньями (градусы) и отклонение первого звена от покоя.
+  metrics() {
+    let maxBend = 0;
+    for (let i = 2; i < this.p.length; i++) {
+      const a = new THREE.Vector3().subVectors(this.p[i - 1], this.p[i - 2]).normalize();
+      const b = new THREE.Vector3().subVectors(this.p[i], this.p[i - 1]).normalize();
+      maxBend = Math.max(maxBend, THREE.MathUtils.radToDeg(a.angleTo(b)));
+    }
+    const r0 = new THREE.Vector3().copy(this.restHips[0]).applyMatrix4(this.hips.matrixWorld);
+    const r1 = new THREE.Vector3().copy(this.restHips[1]).applyMatrix4(this.hips.matrixWorld);
+    const restDir = r1.sub(r0).normalize();
+    const curDir = new THREE.Vector3().subVectors(this.p[1], this.p[0]).normalize();
+    return { maxBend: +maxBend.toFixed(1), rootDev: +THREE.MathUtils.radToDeg(restDir.angleTo(curDir)).toFixed(1) };
   }
 }
