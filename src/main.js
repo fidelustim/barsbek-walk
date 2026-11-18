@@ -87,6 +87,7 @@ function showMenu() {
   $('touch').classList.add('hidden');
 }
 function hideMenu() {
+  document.activeElement?.blur?.();
   $('menu').classList.add('hidden');
   $('hud').classList.remove('hidden');
   if (isTouch) $('touch').classList.remove('hidden');
@@ -228,7 +229,7 @@ renderer.setAnimationLoop(() => {
     if (autoCam && moveYaw !== null && !firstPerson && mv.y > -0.2 && clock.elapsedTime - lastManualLook > 1.0) {
       const targetYaw = character.facing + Math.PI;
       const diff = Math.atan2(Math.sin(targetYaw - yaw), Math.cos(targetYaw - yaw));
-      const rate = (input.run ? 0.9 : 0.55) * mag; // мягко: при ходьбе вбок — плавный круг, а не карусель
+      const rate = (input.run ? 1.4 : 0.9) * mag; // скорость доворота камеры за спину
       yaw += diff * Math.min(1, dt * rate);
     }
     player.step(dt, vx, vz, input.consumeJump());

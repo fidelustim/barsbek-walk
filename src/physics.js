@@ -55,12 +55,14 @@ export class Player {
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(0, 2, 0));
     this.collider = w.createCollider(RAPIER.ColliderDesc.capsule(this.halfHeight, radius), this.body);
     this.ctrl = w.createCharacterController(0.02);
-    this.ctrl.enableAutostep(0.25, 0.15, false);
+    this.ctrl.enableAutostep(0.35, 0.12, false); // ступеньки и бордюры до 35 см — сам, выше — прыжок
     this.ctrl.enableSnapToGround(0.3);
     this.ctrl.setMaxSlopeClimbAngle(50 * Math.PI / 180);
     this.ctrl.setSlideEnabled(true);
     this.vy = 0;
     this.grounded = false;
+    this.sinceGrounded = 0;   // сек с момента, когда стоял на земле (coyote time)
+    this.jumpBuffer = 0;      // нажатие прыжка помним 0.2 с
     this.noclip = false;
   }
 
@@ -76,9 +78,18 @@ export class Player {
     this.vy = 0;
   }
 
-  step(dt, vx, vz, jump) {
-    if (this.grounded) {
-      this.vy = jump ? 4.6 : -1;
+  step(dt, vx, vz, jumpPressed) {
+    if (jumpPressed) this.jumpBuffer = 0.2;
+    else this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    this.sinceGrounded = this.grounded ? 0 : this.sinceGrounded + dt;
+    const canJump = this.sinceGrounded < 0.15 && this.vy <= 0;
+    let jump = false;
+    if (this.jumpBuffer > 0 && canJump) {
+      jump = true; this.jumpBuffer = 0; this.sinceGrounded = 1;
+      this.vy = 5.0;
+      this.grounded = false;
+    } else if (this.grounded) {
+      this.vy = -1;
     } else {
       this.vy -= 9.81 * dt;
       if (this.vy < -20) this.vy = -20;
@@ -90,6 +101,8 @@ export class Player {
       this.grounded = true; this.vy = 0;
       return;
     }
+    // Во время подъёма прилипание к земле выключаем, иначе прыжок «съедается».
+    if (this.vy > 0) this.ctrl.disableSnapToGround(); else this.ctrl.enableSnapToGround(0.3);
     this.ctrl.computeColliderMovement(this.collider, desired);
     const m = this.ctrl.computedMovement();
     this.grounded = this.ctrl.computedGrounded();

@@ -26,11 +26,16 @@ export class Input {
       const h = this.handlers[e.code];
       if (h) h(e);
     });
-    addEventListener('keyup', (e) => this.keys.delete(e.code));
+    addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      if (e.code === 'Space') e.preventDefault(); // чтобы пробел не «нажимал» кнопку в фокусе
+    });
     addEventListener('blur', () => this.keys.clear());
   }
 
   _initMouse() {
+    // После клика по кнопке убираем с неё фокус: иначе пробел нажимает её вместо прыжка.
+    addEventListener('click', (e) => { if (e.target.closest?.('button')) e.target.closest('button').blur(); }, true);
     this.canvas.addEventListener('click', () => {
       if (this.enabled && !this.isTouch && document.pointerLockElement !== this.canvas) {
         this.canvas.requestPointerLock?.();
