@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 
 const _v = new THREE.Vector3();
-const MAX_BEND = THREE.MathUtils.degToRad(28); // макс. угол между соседними звеньями
+const MAX_BEND = THREE.MathUtils.degToRad(18); // макс. угол между соседними звеньями
 
 export class TailBones {
   constructor(model, root) {
@@ -90,7 +90,7 @@ export class TailBones {
       p.copy(c);
       c.x += vx; c.y += vy - 2.0 * dt * dt; c.z += vz;
       this.target(i, tgt, sway, rq);
-      c.lerp(tgt, i === 1 ? 1 : THREE.MathUtils.lerp(0.55, 0.12, t)); // первое звено жёстко с тазом
+      c.lerp(tgt, i === 1 ? 1 : THREE.MathUtils.lerp(0.6, 0.2, t)); // первое звено жёстко с тазом
     }
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(rq);
     const d0 = new THREE.Vector3(), d1 = new THREE.Vector3(), ax = new THREE.Vector3();

@@ -2,7 +2,7 @@
 // Запасной вариант — робот (?hero=robot). Интерфейс одинаковый: load / attach / update / play.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { TailBones } from './tail_bones.js?v=27';
+import { TailBones } from './tail_bones.js?v=28';
 
 export const CHARACTER_HEIGHT = 1.8; // метры, рост героя
 
