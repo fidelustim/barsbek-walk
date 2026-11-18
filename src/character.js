@@ -7,7 +7,7 @@ import { TailBones } from './tail_bones.js?v=29';
 export const CHARACTER_HEIGHT = 1.8; // метры, рост героя
 
 // Скорость, при которой клип ходьбы/бега совпадает с движением ног (замерено по стопе в клипах).
-const CLIP_SPEED = { walk: 1.37, run: 4.8 };
+const CLIP_SPEED = { walk: 1.33, run: 4.66 };
 
 export class Character {
   constructor() {
