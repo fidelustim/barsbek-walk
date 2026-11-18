@@ -85,10 +85,11 @@ export class Tail {
 
   // Форма покоя в системе персонажа (+z — вперёд): назад и вниз, кончик чуть загнут вверх.
   restPoint(t, out, lift) {
-    const z = -0.08 - 0.8 * t;
-    const droop = -0.62 * Math.sin(Math.min(1, t * 1.15) * Math.PI * 0.5);
-    const curl = t > 0.7 ? (t - 0.7) * 0.55 : 0;
-    const y = THREE.MathUtils.lerp(droop + curl, -0.08 * t + 0.1 * t * t, lift);
+    // Как у настоящего барса: от основания вниз-назад, середина низко над землёй, кончик загнут вверх.
+    const z = -0.06 - 0.82 * t;
+    const droop = -0.42 * Math.sin(Math.min(1, t * 1.25) * Math.PI * 0.5);
+    const curl = t > 0.6 ? (t - 0.6) * (t - 0.6) * 1.6 : 0;
+    const y = THREE.MathUtils.lerp(droop + curl, -0.05 * t + 0.12 * t * t, lift);
     return out.set(0, y, z);
   }
 
@@ -114,12 +115,12 @@ export class Tail {
       const cur = this.p[i], pr = this.prev[i];
       const vx = (cur.x - pr.x) * damping, vy = (cur.y - pr.y) * damping, vz = (cur.z - pr.z) * damping;
       pr.copy(cur);
-      cur.x += vx; cur.y += vy - 3.0 * dt * dt; cur.z += vz;
+      cur.x += vx; cur.y += vy - 1.5 * dt * dt; cur.z += vz;
       // тянем к форме покоя: у основания жёстко, к кончику мягко
       this.restPoint(t, rest, this.lift);
       rest.x += sway * t * t;
       rest.applyQuaternion(rootQuat).add(anchor);
-      const k = THREE.MathUtils.lerp(0.35, 0.06, t);
+      const k = THREE.MathUtils.lerp(0.4, 0.1, t);
       cur.lerp(rest, k);
     }
     // длины сегментов (несколько итераций)
