@@ -40,6 +40,8 @@ let current = null;            // { loc, src, overrides }
 let yaw = 0, pitch = -0.15;    // поворот камеры
 let camDist = 2.6;             // дистанция камеры (меняется колесом)
 let firstPerson = false;
+let autoCam = new URLSearchParams(window.location.search).get('autocam') !== '0'; // камера сама заходит за спину
+let lastManualLook = -10;     // время последнего ручного поворота камеры
 let running = false;
 const camPos = new THREE.Vector3();
 const charReady = character.load('./assets/models/robot.glb').then(() => scene.add(character.root));
@@ -99,6 +101,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 input.on('Escape', () => { if (running) showMenu(); else if (location) hideMenu(); });
 input.on('KeyV', () => { firstPerson = !firstPerson; });
+input.on('KeyF', () => { autoCam = !autoCam; toast(autoCam ? 'Камера следует за героем: вкл' : 'Камера следует за героем: выкл'); });
 input.on('KeyH', () => $('stats').classList.toggle('hidden'));
 input.on('KeyC', () => { if (debugGroup) debugGroup.visible = !debugGroup.visible; });
 input.on('KeyN', () => { if (player) { player.noclip = !player.noclip; toast(player.noclip ? 'Сквозь стены: вкл' : 'Сквозь стены: выкл'); } });
@@ -167,6 +170,7 @@ async function startLocation(loc, src) {
 const tmpV = new THREE.Vector3();
 function updateCamera(dt) {
   const look = input.consumeLook();
+  if (look.dx || look.dy) lastManualLook = clock.elapsedTime;
   const sens = isTouch ? 0.004 : 0.0024;
   yaw -= look.dx * sens;
   pitch -= look.dy * sens;
@@ -219,6 +223,14 @@ renderer.setAnimationLoop(() => {
       vx = d.x * speed; vz = d.z * speed;
       moveYaw = Math.atan2(d.x, d.z);
     }
+    // Автокамера: при движении вперёд/вбок камера плавно заходит за спину героя.
+    // Ручной поворот мышью/пальцем на 1 с отключает её; при ходьбе назад не крутим.
+    if (autoCam && moveYaw !== null && !firstPerson && mv.y > -0.2 && clock.elapsedTime - lastManualLook > 1.0) {
+      const targetYaw = character.facing + Math.PI;
+      const diff = Math.atan2(Math.sin(targetYaw - yaw), Math.cos(targetYaw - yaw));
+      const rate = (input.run ? 2.4 : 1.6) * mag;
+      yaw += diff * Math.min(1, dt * rate);
+    }
     player.step(dt, vx, vz, input.consumeJump());
     physics.world.step();
     const f = player.feet;
@@ -250,6 +262,6 @@ buildMenu();
 
 // Хук для автотестов и отладки из консоли.
 window.__game = {
-  state: () => player ? { feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
+  state: () => player ? { yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
   key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),
 };
