@@ -42,3 +42,7 @@ h1 { margin: 0 0 4px; font-size: 24px; }
 #stick-knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.4); }
 #btn-jump { position: fixed; right: 24px; bottom: max(28px, env(safe-area-inset-bottom)); z-index: 5; }
 .big { width: 64px; height: 64px; font-size: 26px; }
+
+.hero-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; font-size: 14px; }
+.hero-row select { flex: 1; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: inherit; font: inherit; }
+.hero-row option { color: #000; }

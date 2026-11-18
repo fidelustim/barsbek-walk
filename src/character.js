@@ -2,7 +2,8 @@
 // Запасной вариант — робот (?hero=robot). Интерфейс одинаковый: load / attach / update / play.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { TailBones } from './tail_bones.js?v=30';
+import { TailBones } from './tail_bones.js?v=31';
+import { TailBones as TailBonesV1 } from './tail_bones_v1.js?v=31';
 
 export const CHARACTER_HEIGHT = 1.8; // метры, рост героя
 
@@ -22,7 +23,7 @@ export class Character {
     this.airTime = 0;
   }
 
-  async load(url, onProgress) {
+  async load(url, onProgress, opts = {}) {
     const gltf = await new GLTFLoader().loadAsync(url, onProgress);
     const model = gltf.scene;
     // Нормализуем рост и ставим ступни на y=0.
@@ -63,7 +64,7 @@ export class Character {
     this.hips = hips;
     this.isBarsbek = !!hips;
     this.clipSpeed = this.isBarsbek ? CLIP_SPEED : { walk: 1.6, run: 5 };
-    if (this.isBarsbek && model.getObjectByName('Tail0')) this.tailBones = new TailBones(model, this.root);
+    if (this.isBarsbek && model.getObjectByName('Tail0')) this.tailBones = new (opts.tailV1 ? TailBonesV1 : TailBones)(model, this.root);
     this.play('idle', 0);
   }
 

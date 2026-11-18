@@ -170,6 +170,7 @@ im.save('/tmp/bw_tex_out.jpg', quality=85, optimize=True)
 }
 
 await base.transform(dedup(), prune());
+const OUT = process.env.OUT || 'assets/models/barsbek.glb';
 fs.mkdirSync('assets/models', { recursive: true });
-await io.write('assets/models/barsbek.glb', base);
-console.log('written', (fs.statSync('assets/models/barsbek.glb').size / 1024 / 1024).toFixed(2), 'MB');
+await io.write(OUT, base);
+console.log('written', OUT, (fs.statSync(OUT).size / 1024 / 1024).toFixed(2), 'MB');

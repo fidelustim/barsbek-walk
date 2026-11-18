@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>Барсбек гуляет</title>
-<link rel="stylesheet" href="./src/style.css?v=30" />
+<link rel="stylesheet" href="./src/style.css?v=31" />
 <script type="importmap">
 {
   "imports": {
@@ -23,6 +23,9 @@
   <h1>Барсбек гуляет</h1>
   <p class="sub">Выбери локацию <span id="ver" style="opacity:.5;font-size:12px"></span></p>
   <div id="locations"></div>
+  <label class="hero-row">Герой:
+    <select id="hero-select"></select>
+  </label>
   <label class="file-btn">
     Открыть свой скан (.spz / .ply)
     <input id="file" type="file" accept=".spz,.ply,.splat,.ksplat,.sog" hidden />
@@ -31,7 +34,7 @@
   <details class="help">
     <summary>Управление</summary>
     <ul>
-      <li><b>Компьютер:</b> клик по сцене — захват мыши, WASD — идти, Shift — бежать, Пробел — прыжок, V — вид от первого лица, F — камера сама за спиной (вкл/выкл), Esc — меню</li>
+      <li><b>Компьютер:</b> клик по сцене — захват мыши, WASD — идти, Shift — бежать, Пробел — прыжок, V — вид от первого лица, F — камера сама за спиной (вкл/выкл), B — сменить модель v1/v2, Esc — меню</li>
       <li><b>Телефон:</b> левая половина экрана — джойстик, правая — поворот камеры, кнопка ↑ — прыжок</li>
       <li><b>Отладка:</b> C — показать стены, U — сменить «верх» скана, [ ] — ниже/выше пол, H — статистика</li>
     </ul>
@@ -55,6 +58,6 @@
   <button id="btn-jump" class="round big">↑</button>
 </div>
 
-<script type="module" src="./src/main.js?v=30"></script>
+<script type="module" src="./src/main.js?v=31"></script>
 </body>
 </html>

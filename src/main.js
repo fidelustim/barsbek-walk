@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=30';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=30';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=30';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=30';
+import { Input } from './input.js?v=31';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=31';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=31';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=31';
 
-const BUILD = 'v30';
+const BUILD = 'v31';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -52,11 +52,18 @@ const camPos = new THREE.Vector3();
 const pivotSmooth = new THREE.Vector3();
 let pivotInit = false, camDistCur = 2.6;
 let camTrack = null;          // автотест: максимальный скачок камеры за кадр
+// Выбор модели героя: ?hero=v1 | v2 | robot, или переключатель в меню (запоминается).
+const HEROES = {
+  v2: { url: './assets/models/barsbek.glb?v=31', name: 'Барсбек v2 (новый)' },
+  v1: { url: './assets/models/barsbek_v1.glb?v=31', name: 'Барсбек v1 (старый)', tailV1: true },
+  robot: { url: './assets/models/robot.glb', name: 'Робот (тест)' },
+};
 const heroParam = new URLSearchParams(window.location.search).get('hero');
-const HERO_URL = heroParam === 'robot' ? './assets/models/robot.glb' : './assets/models/barsbek.glb?v=30';
-const charReady = character.load(HERO_URL, (e) => {
+const heroId = HEROES[heroParam] ? heroParam : (HEROES[localStorage.getItem('hero')] ? localStorage.getItem('hero') : 'v2');
+const HERO = HEROES[heroId];
+const charReady = character.load(HERO.url, (e) => {
   if (e.lengthComputable && !$('loading').classList.contains('hidden')) $('loading-bar').style.width = (100 * e.loaded / e.total).toFixed(0) + '%';
-}).then(() => character.attach(scene));
+}, { tailV1: HERO.tailV1 })}).then(() => character.attach(scene));
 
 function toast(text, ms = 2500) {
   const t = $('toast'); t.textContent = text; t.classList.add('show');
@@ -305,6 +312,21 @@ renderer.setAnimationLoop(() => {
 
 buildMenu();
 $('ver').textContent = 'версия ' + BUILD;
+// Переключатель героя: перезагружает страницу с выбранной моделью и той же локацией.
+{
+  const sel = $('hero-select');
+  for (const [id, h] of Object.entries(HEROES)) {
+    const o = document.createElement('option'); o.value = id; o.textContent = h.name; if (id === heroId) o.selected = true; sel.appendChild(o);
+  }
+  sel.onchange = () => {
+    localStorage.setItem('hero', sel.value);
+    const u = new URL(window.location.href); u.searchParams.set('hero', sel.value);
+    if (current?.loc?.id && current.loc.id !== 'file') u.searchParams.set('loc', current.loc.id);
+    window.location.href = u.toString();
+  };
+  // Быстрое переключение клавишей B (сравнение v1 ↔ v2 в той же локации)
+  input.on('KeyB', () => { sel.value = heroId === 'v2' ? 'v1' : 'v2'; sel.onchange(); });
+}
 
 // Хук для автотестов и отладки из консоли.
 window.__game = {
