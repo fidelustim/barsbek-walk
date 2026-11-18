@@ -1,0 +1,17 @@
+[
+  {
+    "id": "yard",
+    "name": "Тестовый двор",
+    "description": "Простая сцена из кода: проверить управление",
+    "type": "procedural"
+  },
+  {
+    "id": "demo-room",
+    "name": "Демо-комната (скан)",
+    "description": "Чужой пример гауссова сплата, 8 МБ — пока нет нашей квартиры",
+    "type": "splat",
+    "url": "https://storage.googleapis.com/forge-dev-public/painted_bedroom.spz",
+    "up": "auto",
+    "collision": "auto"
+  }
+]

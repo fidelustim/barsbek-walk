@@ -1,0 +1,14 @@
+{
+  "name": "barsbek-walk",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {},
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "@sparkjsdev/spark": "^2.4.0",
+    "three": "^0.187.0"
+  },
+  "private": true
+}
