@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=26';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=26';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=26';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=26';
+import { Input } from './input.js?v=27';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=27';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=27';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=27';
 
-const BUILD = 'v26';
+const BUILD = 'v27';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -53,7 +53,7 @@ const pivotSmooth = new THREE.Vector3();
 let pivotInit = false, camDistCur = 2.6;
 let camTrack = null;          // автотест: максимальный скачок камеры за кадр
 const heroParam = new URLSearchParams(window.location.search).get('hero');
-const HERO_URL = heroParam === 'robot' ? './assets/models/robot.glb' : './assets/models/barsbek.glb?v=26';
+const HERO_URL = heroParam === 'robot' ? './assets/models/robot.glb' : './assets/models/barsbek.glb?v=27';
 const charReady = character.load(HERO_URL, (e) => {
   if (e.lengthComputable && !$('loading').classList.contains('hidden')) $('loading-bar').style.width = (100 * e.loaded / e.total).toFixed(0) + '%';
 }).then(() => character.attach(scene));
