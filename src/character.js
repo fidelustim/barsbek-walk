@@ -17,7 +17,7 @@ export class Character {
     this.actions = {};
     this.current = null;
     this.facing = 0;                 // угол поворота модели (рад)
-    this.tail = null;
+    this.tailBones = null;
     this.time = 0;
     this.airTime = 0;
   }
