@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=15';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=15';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=15';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=15';
+import { Input } from './input.js?v=16';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=16';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=16';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=16';
 
-const BUILD = 'v15';
+const BUILD = 'v16';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -277,7 +277,7 @@ $('ver').textContent = 'версия ' + BUILD;
 
 // Хук для автотестов и отладки из консоли.
 window.__game = {
-  state: () => player ? { yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
+  state: () => player ? { dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
   teleport: (x, y, z, camYaw) => { player.teleport(x, y, z); if (camYaw !== undefined) yaw = camYaw; },
   stick: (x, y) => { testMove = (x || y) ? { x, y } : null; },
   key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),

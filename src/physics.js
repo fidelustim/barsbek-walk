@@ -117,6 +117,7 @@ export class Player {
     // Упор считаем по продвижению вдоль желаемого направления: при подходе под углом
     // герой скользит вдоль ступеньки, и общая длина шага почти не падает.
     const along = dLen > 1e-4 ? (m.x * desired.x + m.z * desired.z) / dLen : 0;
+    this.dbgAlong = dLen > 1e-4 ? +(along / dLen).toFixed(2) : null; this.dbgG = this.grounded;
     if (dLen > 1e-4 && along < dLen * 0.9 && (this.grounded || this.sinceGrounded < 0.15) && this.vy <= 0) {
       const up = this.tryStepUp(t, desired.x / dLen, desired.z / dLen, dLen);
       if (up) { nx = up.x; ny = up.y; nz = up.z; this.grounded = true; this.stepped = up.h; }
@@ -139,15 +140,16 @@ export class Player {
       const hh = origin.y - hit.timeOfImpact - feetY;
       if (hh >= 0.02 && hh <= STEP_MAX) { h = hh; break; }
     }
-    if (h < 0) return null;
+    if (h < 0) { this.dbg = 'noledge'; return null; }
     // 2) Хватает ли места: капсула, поднятая на h, свободно проходит вперёд.
     const rot = { x: 0, y: 0, z: 0, w: 1 };
     const lifted = { x: t.x, y: t.y + h + 0.02, z: t.z };
     const shape = this.collider.shape;
     const upHit = w.castShape(t, rot, { x: 0, y: 1, z: 0 }, shape, 0, h + 0.02, true, undefined, undefined, this.collider);
-    if (upHit) return null;
+    if (upHit) { this.dbg = 'up'; return null; }
     const fwdHit = w.castShape(lifted, rot, { x: dx, y: 0, z: dz }, shape, 0, Math.max(dist, 0.08), true, undefined, undefined, this.collider);
-    if (fwdHit) return null;
+    if (fwdHit) { this.dbg = 'fwd ' + fwdHit.time_of_impact.toFixed(3) + ' h' + h.toFixed(2); return null; }
+    this.dbg = 'ok h' + h.toFixed(2);
     return { x: t.x + dx * dist, y: lifted.y, z: t.z + dz * dist, h };
   }
 }
