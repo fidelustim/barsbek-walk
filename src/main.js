@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=20';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=20';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=20';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=20';
+import { Input } from './input.js?v=21';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=21';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=21';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=21';
 
-const BUILD = 'v20';
+const BUILD = 'v21';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -38,7 +38,8 @@ const input = new Input(canvas);
 const character = new Character();
 let physics = null, player = null, location = null, debugGroup = null;
 let current = null;            // { loc, src, overrides }
-let yaw = 0, pitch = -0.15;    // поворот камеры
+const DEFAULT_PITCH = -0.2;
+let yaw = 0, pitch = DEFAULT_PITCH;    // поворот камеры
 let camDist = 2.6;             // дистанция камеры (меняется колесом)
 let firstPerson = false;
 let autoCam = new URLSearchParams(window.location.search).get('autocam') !== '0'; // камера сама заходит за спину
@@ -201,8 +202,10 @@ function updateCamera(dt) {
   const vis = character.root.position;
   if (!pivotInit || pivotSmooth.distanceTo(vis) > 2) { pivotSmooth.copy(vis); pivotInit = true; }
   pivotSmooth.x = vis.x; pivotSmooth.z = vis.z;
-  const vRate = player.grounded ? 6 : 10; // в прыжке/падении чуть быстрее
-  pivotSmooth.y += (vis.y - pivotSmooth.y) * (1 - Math.exp(-dt * vRate));
+  // На земле — мягко (ступеньки), в прыжке вверх — вяло (камера не скачет), вниз — быстро.
+  const dy = vis.y - pivotSmooth.y;
+  const vRate = player.grounded ? 6 : (dy > 0 ? 3 : 14);
+  pivotSmooth.y += dy * (1 - Math.exp(-dt * vRate));
   const pivot = pivotSmooth.clone().add(new THREE.Vector3(0, CHARACTER_HEIGHT * 0.8, 0));
   const dir = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
   // Камера не должна проходить сквозь стены: луч от головы к камере.
@@ -247,11 +250,18 @@ renderer.setAnimationLoop(() => {
     }
     // Автокамера: при движении вперёд/вбок камера плавно заходит за спину героя.
     // Ручной поворот мышью/пальцем на 1 с отключает её; при ходьбе назад не крутим.
-    if (autoCam && moveYaw !== null && !firstPerson && mv.y > -0.2 && clock.elapsedTime - lastManualLook > 1.0) {
-      const targetYaw = character.facing + Math.PI;
-      const diff = Math.atan2(Math.sin(targetYaw - yaw), Math.cos(targetYaw - yaw));
-      const rate = (input.run ? 1.4 : 0.9) * mag; // скорость доворота камеры за спину
-      yaw += diff * Math.min(1, dt * rate);
+    // Автокамера: через 1 с после ручного поворота камера сама возвращается за спину героя —
+    // при движении быстрее, стоя на месте — медленно и спустя 2 с. При ходьбе назад не крутим.
+    const idleLook = clock.elapsedTime - lastManualLook;
+    if (autoCam && !firstPerson && idleLook > 1.0) {
+      const moving = moveYaw !== null;
+      if ((moving && mv.y > -0.2) || (!moving && idleLook > 2.0)) {
+        const targetYaw = character.facing + Math.PI;
+        const diff = Math.atan2(Math.sin(targetYaw - yaw), Math.cos(targetYaw - yaw));
+        const rate = moving ? (input.run ? 2.2 : 1.6) * Math.max(0.5, mag) : 1.2;
+        yaw += diff * Math.min(1, dt * rate);
+        pitch += (DEFAULT_PITCH - pitch) * Math.min(1, dt * rate * 0.6);
+      }
     }
     const sub = simFps ? Math.max(1, Math.round(dt * simFps)) : 1;
     const jumpNow = input.consumeJump();
@@ -293,9 +303,10 @@ $('ver').textContent = 'версия ' + BUILD;
 
 // Хук для автотестов и отладки из консоли.
 window.__game = {
-  state: () => player ? { dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
+  state: () => player ? { pitch: +pitch.toFixed(3), dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
   teleport: (x, y, z, camYaw) => { player.teleport(x, y, z); if (camYaw !== undefined) yaw = camYaw; },
   camTrack: (on) => { if (on) camTrack = { maxDy: 0, prev: null }; const r = camTrack; if (!on) camTrack = null; return r && +r.maxDy.toFixed(4); },
+  look: (dx, dy) => { input.look.dx += dx; input.look.dy += dy; },
   stick: (x, y) => { testMove = (x || y) ? { x, y } : null; },
   key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),
 };

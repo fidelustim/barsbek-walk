@@ -45,6 +45,10 @@ export class Physics {
   }
 }
 
+// Параметры прыжка: высота ≈ 0.9 м, весь прыжок ≈ 0.75 с.
+const GRAVITY = 22, FALL_MULT = 1.5;
+const JUMP_V = Math.sqrt(2 * GRAVITY * 0.9);
+
 // Игрок: кинематическая капсула + контроллер персонажа.
 export class Player {
   constructor(physics, radius = 0.28, height = 1.8) {
@@ -86,13 +90,14 @@ export class Player {
     let jump = false;
     if (this.jumpBuffer > 0 && canJump) {
       jump = true; this.jumpBuffer = 0; this.sinceGrounded = 1;
-      this.vy = 5.0;
+      this.vy = JUMP_V;
       this.grounded = false;
     } else if (this.grounded) {
       this.vy = -1;
     } else {
-      this.vy -= 9.81 * dt;
-      if (this.vy < -20) this.vy = -20;
+      // Игровая гравитация: сильнее земной, а на спуске ещё сильнее — прыжок «упругий», без парения.
+      this.vy -= GRAVITY * (this.vy < 0 ? FALL_MULT : 1) * dt;
+      if (this.vy < -25) this.vy = -25;
     }
     const desired = { x: vx * dt, y: this.vy * dt, z: vz * dt };
     const t = this.body.translation();
