@@ -2,7 +2,8 @@
 // текстура пережимается в JPEG 2048 (из 3.4 МБ), лишнее удаляется.
 // Запуск: node tools/build_character.mjs
 import { NodeIO } from '@gltf-transform/core';
-import { prune, dedup } from '@gltf-transform/functions';
+import { prune, dedup, compactPrimitive } from '@gltf-transform/functions';
+const compactPrim = () => (doc) => { for (const m of doc.getRoot().listMeshes()) for (const p of m.listPrimitives()) compactPrimitive(p); };
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 
@@ -41,6 +42,24 @@ for (const [file, name] of clips) {
   }
 }
 
+// Meshy сам «додумал» хвост (лежит на земле за ногами), хотя на картинке его нет.
+// Вырезаем треугольники хвоста: всё позади ног ниже таза. Хвост рисуется кодом (src/tail.js).
+const isTail = (x, y, z) => (y < 0.74 && z < 0.04) || (y < 0.82 && z < 0.03 && Math.abs(x) < 0.08);
+for (const mesh of root.listMeshes()) for (const prim of mesh.listPrimitives()) {
+  const P = prim.getAttribute('POSITION').getArray();
+  const I = prim.getIndices().getArray();
+  const keep = [];
+  let cut = 0;
+  for (let t = 0; t < I.length; t += 3) {
+    let tail = 0;
+    for (let k = 0; k < 3; k++) { const v = I[t + k]; if (isTail(P[v * 3], P[v * 3 + 1], P[v * 3 + 2])) tail++; }
+    if (tail >= 2) { cut++; continue; }
+    keep.push(I[t], I[t + 1], I[t + 2]);
+  }
+  prim.getIndices().setArray(new Uint32Array(keep));
+  console.log('tail triangles removed:', cut, 'of', I.length / 3);
+}
+
 // Текстура: JPEG 2048, quality 85 (через Pillow).
 for (const tex of root.listTextures()) {
   fs.writeFileSync('/tmp/bw_tex_in', Buffer.from(tex.getImage()));
@@ -53,7 +72,7 @@ im.save('/tmp/bw_tex_out.jpg', quality=85, optimize=True)
   tex.setImage(fs.readFileSync('/tmp/bw_tex_out.jpg')).setMimeType('image/jpeg');
 }
 
-await base.transform(dedup(), prune());
+await base.transform(dedup(), prune(), compactPrim());
 fs.mkdirSync('assets/models', { recursive: true });
 await io.write('assets/models/barsbek.glb', base);
 console.log('written', (fs.statSync('assets/models/barsbek.glb').size / 1024 / 1024).toFixed(2), 'MB');
