@@ -63,7 +63,7 @@ const heroId = HEROES[heroParam] ? heroParam : (HEROES[localStorage.getItem('her
 const HERO = HEROES[heroId];
 const charReady = character.load(HERO.url, (e) => {
   if (e.lengthComputable && !$('loading').classList.contains('hidden')) $('loading-bar').style.width = (100 * e.loaded / e.total).toFixed(0) + '%';
-}, { tailV1: HERO.tailV1 })}).then(() => character.attach(scene));
+}, { tailV1: HERO.tailV1 }).then(() => character.attach(scene));
 
 function toast(text, ms = 2500) {
   const t = $('toast'); t.textContent = text; t.classList.add('show');
