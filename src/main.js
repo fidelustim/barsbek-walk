@@ -2,18 +2,18 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=21';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=21';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=21';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=21';
+import { Input } from './input.js?v=22';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=22';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=22';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=22';
 
-const BUILD = 'v21';
+const BUILD = 'v22';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
 // ---------- Рендер ----------
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: new URLSearchParams(window.location.search).has('snap') });
 const params = new URLSearchParams(window.location.search);
 const prParam = parseFloat(params.get('pr'));
 renderer.setPixelRatio(prParam > 0 ? prParam : Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
@@ -52,7 +52,11 @@ const camPos = new THREE.Vector3();
 const pivotSmooth = new THREE.Vector3();
 let pivotInit = false, camDistCur = 2.6;
 let camTrack = null;          // автотест: максимальный скачок камеры за кадр
-const charReady = character.load('./assets/models/robot.glb').then(() => scene.add(character.root));
+const heroParam = new URLSearchParams(window.location.search).get('hero');
+const HERO_URL = heroParam === 'robot' ? './assets/models/robot.glb' : './assets/models/barsbek.glb?v=22';
+const charReady = character.load(HERO_URL, (e) => {
+  if (e.lengthComputable && !$('loading').classList.contains('hidden')) $('loading-bar').style.width = (100 * e.loaded / e.total).toFixed(0) + '%';
+}).then(() => character.attach(scene));
 
 function toast(text, ms = 2500) {
   const t = $('toast'); t.textContent = text; t.classList.add('show');
@@ -164,6 +168,7 @@ async function startLocation(loc, src) {
     camDistCur = camDist; pivotInit = false;
     firstPerson = false;
     character.root.position.copy(location.spawn);
+    character.resetTail();
     camPos.copy(location.spawn).add(new THREE.Vector3(0, 1.6, camDist));
     $('loading').classList.add('hidden');
     hideMenu();
@@ -275,7 +280,7 @@ renderer.setAnimationLoop(() => {
     visualOff.multiplyScalar(Math.exp(-dt * 12));
     if (visualOff.lengthSq() < 4e-6) visualOff.set(0, 0, 0);
     character.root.position.set(f.x + visualOff.x, f.y + visualOff.y, f.z + visualOff.z);
-    character.update(dt, Math.hypot(vx, vz), player.grounded, moveYaw);
+    character.update(dt, Math.hypot(vx, vz), player.grounded, moveYaw, f.y);
     // Упал за пределы — возвращаем на точку появления.
     if (f.y < location.floorY - 8) player.teleport(location.spawn.x, location.spawn.y, location.spawn.z);
     updateCamera(dt);
@@ -303,9 +308,11 @@ $('ver').textContent = 'версия ' + BUILD;
 
 // Хук для автотестов и отладки из консоли.
 window.__game = {
-  state: () => player ? { pitch: +pitch.toFixed(3), dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
+  state: () => player ? { tailTip: character.tail ? character.tail.p[character.tail.p.length - 1].toArray().map((v) => +v.toFixed(2)) : null, pitch: +pitch.toFixed(3), dbg: player.dbg, along: player.dbgAlong, g: player.dbgG, yaw: +yaw.toFixed(3), facing: +character.facing.toFixed(3), autoCam, feet: player.feet.toArray().map((v) => +v.toFixed(3)), grounded: player.grounded, fps: +fps.toFixed(1), info: location?.info || '', anim: Object.keys(character.map || {}).find((k) => character.map[k] === character.current) } : null,
   teleport: (x, y, z, camYaw) => { player.teleport(x, y, z); if (camYaw !== undefined) yaw = camYaw; },
   camTrack: (on) => { if (on) camTrack = { maxDy: 0, prev: null }; const r = camTrack; if (!on) camTrack = null; return r && +r.maxDy.toFixed(4); },
+  snap: (w = 480, h = 640) => { const ow = innerWidth, oh = innerHeight; renderer.setPixelRatio(1); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.render(scene, camera); const url = renderer.domElement.toDataURL('image/jpeg', 0.85); renderer.setSize(ow, oh); camera.aspect = ow / oh; camera.updateProjectionMatrix(); return url; },
+  setCam: (y, p, d) => { yaw = y; pitch = p; if (d) { camDist = d; camDistCur = d; } lastManualLook = clock.elapsedTime + 1000; },
   look: (dx, dy) => { input.look.dx += dx; input.look.dy += dy; },
   stick: (x, y) => { testMove = (x || y) ? { x, y } : null; },
   key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),

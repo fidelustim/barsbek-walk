@@ -10,5 +10,10 @@
     "@sparkjsdev/spark": "^2.4.0",
     "three": "^0.187.0"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "gl-matrix": "^3.4.4"
+  }
 }
