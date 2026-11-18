@@ -335,6 +335,8 @@ window.__game = {
   camTrack: (on) => { if (on) camTrack = { maxDy: 0, prev: null }; const r = camTrack; if (!on) camTrack = null; return r && +r.maxDy.toFixed(4); },
   snap: (w = 480, h = 640) => { const ow = innerWidth, oh = innerHeight; renderer.setPixelRatio(1); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.render(scene, camera); const url = renderer.domElement.toDataURL('image/jpeg', 0.85); renderer.setSize(ow, oh); camera.aspect = ow / oh; camera.updateProjectionMatrix(); return url; },
   setCam: (y, p, d) => { yaw = y; pitch = p; if (d) { camDist = d; camDistCur = d; } lastManualLook = clock.elapsedTime + 1000; },
+  // отладка: 'flat' — без текстуры (видна чистая геометрия), 'tex' — вернуть
+  mat: (mode) => { character.model.traverse((o) => { if (!o.isMesh) return; o.userData.m0 ??= o.material; o.material = mode === 'flat' ? new THREE.MeshStandardMaterial({ color: 0xbfbfbf, roughness: 0.8, skinning: true }) : o.userData.m0; }); },
   look: (dx, dy) => { input.look.dx += dx; input.look.dy += dy; },
   stick: (x, y) => { testMove = (x || y) ? { x, y } : null; },
   key: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })),
