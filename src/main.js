@@ -2,12 +2,12 @@
 import * as THREE from 'three';
 import { SparkRenderer } from '@sparkjsdev/spark';
 import RAPIER from 'rapier';
-import { Input } from './input.js?v=33';
-import { Character, CHARACTER_HEIGHT } from './character.js?v=33';
-import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=33';
-import { loadLocationList, buildYard, buildSplat } from './locations.js?v=33';
+import { Input } from './input.js?v=34';
+import { Character, CHARACTER_HEIGHT } from './character.js?v=34';
+import { initPhysics, Physics, Player, UP_OPTIONS } from './physics.js?v=34';
+import { loadLocationList, buildYard, buildSplat } from './locations.js?v=34';
 
-const BUILD = 'v33';
+const BUILD = 'v34';
 const $ = (id) => document.getElementById(id);
 const canvas = $('view');
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -54,12 +54,14 @@ let pivotInit = false, camDistCur = 2.6;
 let camTrack = null;          // автотест: максимальный скачок камеры за кадр
 // Выбор модели героя: ?hero=v1 | v2 | robot, или переключатель в меню (запоминается).
 const HEROES = {
-  v2: { url: './assets/models/barsbek.glb?v=33', name: 'Барсбек v2 (новый)' },
-  v1: { url: './assets/models/barsbek_v1.glb?v=33', name: 'Барсбек v1 (старый)', tailV1: true },
+  v1: { url: './assets/models/barsbek_v1.glb?v=34', name: 'Барсбек (основной, v1)', tailV1: true },
+  v2: { url: './assets/models/barsbek.glb?v=34', name: 'Барсбек v2 (проба)' },
   robot: { url: './assets/models/robot.glb', name: 'Робот (тест)' },
 };
 const heroParam = new URLSearchParams(window.location.search).get('hero');
-const heroId = HEROES[heroParam] ? heroParam : (HEROES[localStorage.getItem('hero')] ? localStorage.getItem('hero') : 'v2');
+// По умолчанию — v1 (выбор Евгения). Старый сохранённый выбор v2 из прошлой сессии сравнения не подхватываем.
+const savedHero = localStorage.getItem('hero2');
+const heroId = HEROES[heroParam] ? heroParam : (HEROES[savedHero] ? savedHero : 'v1');
 const HERO = HEROES[heroId];
 const charReady = character.load(HERO.url, (e) => {
   if (e.lengthComputable && !$('loading').classList.contains('hidden')) $('loading-bar').style.width = (100 * e.loaded / e.total).toFixed(0) + '%';
@@ -319,7 +321,7 @@ $('ver').textContent = 'версия ' + BUILD;
     const o = document.createElement('option'); o.value = id; o.textContent = h.name; if (id === heroId) o.selected = true; sel.appendChild(o);
   }
   sel.onchange = () => {
-    localStorage.setItem('hero', sel.value);
+    localStorage.setItem('hero2', sel.value);
     const u = new URL(window.location.href); u.searchParams.set('hero', sel.value);
     if (current?.loc?.id && current.loc.id !== 'file') u.searchParams.set('loc', current.loc.id);
     window.location.href = u.toString();
