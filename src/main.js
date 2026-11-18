@@ -41,7 +41,9 @@ let yaw = 0, pitch = -0.15;    // поворот камеры
 let camDist = 2.6;             // дистанция камеры (меняется колесом)
 let firstPerson = false;
 let autoCam = new URLSearchParams(window.location.search).get('autocam') !== '0'; // камера сама заходит за спину
-let lastManualLook = -10;     // время последнего ручного поворота камеры
+let lastManualLook = -10;
+let visualYOffset = 0;
+const simFps = parseFloat(new URLSearchParams(window.location.search).get('simfps')) || 0;      // сглаживание шага на ступеньку     // время последнего ручного поворота камеры
 let running = false;
 const camPos = new THREE.Vector3();
 const charReady = character.load('./assets/models/robot.glb').then(() => scene.add(character.root));
@@ -232,10 +234,18 @@ renderer.setAnimationLoop(() => {
       const rate = (input.run ? 1.4 : 0.9) * mag; // скорость доворота камеры за спину
       yaw += diff * Math.min(1, dt * rate);
     }
-    player.step(dt, vx, vz, input.consumeJump());
-    physics.world.step();
+    const sub = simFps ? Math.max(1, Math.round(dt * simFps)) : 1;
+    const jumpNow = input.consumeJump();
+    for (let k = 0; k < sub; k++) {
+      player.step(dt / sub, vx, vz, jumpNow && k === 0);
+      physics.world.step();
+    }
     const f = player.feet;
-    character.root.position.copy(f);
+    // Сглаживаем визуальный подъём на ступеньку (физика поднимает мгновенно).
+    if (player.stepped) { visualYOffset -= player.stepped; player.stepped = 0; }
+    visualYOffset *= Math.exp(-dt * 14);
+    if (Math.abs(visualYOffset) < 0.002) visualYOffset = 0;
+    character.root.position.set(f.x, f.y + visualYOffset, f.z);
     character.update(dt, Math.hypot(vx, vz), player.grounded, moveYaw);
     // Упал за пределы — возвращаем на точку появления.
     if (f.y < location.floorY - 8) player.teleport(location.spawn.x, location.spawn.y, location.spawn.z);

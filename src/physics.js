@@ -109,7 +109,39 @@ export class Player {
     this.grounded = this.vy > 0 ? false : this.ctrl.computedGrounded();
     if (this.grounded && this.vy < 0) this.vy = -1;
     if (this.vy > 0 && m.y < desired.y * 0.3) this.vy = 0; // упёрся головой в потолок
-    this.body.setNextKinematicTranslation({ x: t.x + m.x, y: t.y + m.y, z: t.z + m.z });
+    let nx = t.x + m.x, ny = t.y + m.y, nz = t.z + m.z;
+    // Свой «шаг на ступеньку»: встроенный autostep Rapier срабатывает только на скорости бега.
+    // Если при ходьбе упёрлись во что-то низкое (≤ STEP_MAX) с ровным верхом — поднимаем героя на него.
+    const dLen = Math.hypot(desired.x, desired.z);
+    const mLen = Math.hypot(m.x, m.z);
+    if (dLen > 1e-4 && mLen < dLen * 0.6 && (this.grounded || this.sinceGrounded < 0.1) && this.vy <= 0) {
+      const up = this.tryStepUp(t, desired.x / dLen, desired.z / dLen, dLen);
+      if (up) { nx = up.x; ny = up.y; nz = up.z; this.grounded = true; this.stepped = up.h; }
+    }
+    this.body.setNextKinematicTranslation({ x: nx, y: ny, z: nz });
+  }
+
+  tryStepUp(t, dx, dz, dist) {
+    const STEP_MAX = 0.36;
+    const w = this.physics.world;
+    const feetY = t.y - this.halfHeight - this.radius;
+    // 1) Есть ли впереди ровная поверхность не выше STEP_MAX?
+    const probe = this.radius + 0.06;
+    const origin = { x: t.x + dx * probe, y: feetY + STEP_MAX + 0.05, z: t.z + dz * probe };
+    const hit = w.castRayAndGetNormal(new RAPIER.Ray(origin, { x: 0, y: -1, z: 0 }), STEP_MAX + 0.05, true,
+      undefined, undefined, this.collider);
+    if (!hit || hit.normal.y < 0.75) return null;
+    const h = origin.y - hit.timeOfImpact - feetY;
+    if (h < 0.02 || h > STEP_MAX) return null;
+    // 2) Хватает ли места: капсула, поднятая на h, свободно проходит вперёд.
+    const rot = { x: 0, y: 0, z: 0, w: 1 };
+    const lifted = { x: t.x, y: t.y + h + 0.02, z: t.z };
+    const shape = this.collider.shape;
+    const upHit = w.castShape(t, rot, { x: 0, y: 1, z: 0 }, shape, 0, h + 0.02, true, undefined, undefined, this.collider);
+    if (upHit) return null;
+    const fwdHit = w.castShape(lifted, rot, { x: dx, y: 0, z: dz }, shape, 0, Math.max(dist, 0.08), true, undefined, undefined, this.collider);
+    if (fwdHit) return null;
+    return { x: t.x + dx * dist, y: lifted.y, z: t.z + dz * dist, h };
   }
 }
 
